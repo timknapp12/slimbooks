@@ -1,9 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, TrendingDown, Users } from 'lucide-react'
+
+interface Transaction {
+  id: string
+  description: string
+  date: string
+  category: string
+  type: 'income' | 'expense'
+  amount: number
+  created_at: string
+}
 
 interface DashboardStats {
   totalIncome: number
@@ -11,7 +23,7 @@ interface DashboardStats {
   netIncome: number
   openPayables: number
   openReceivables: number
-  recentTransactions: any[]
+  recentTransactions: Transaction[]
 }
 
 export default function DashboardPage() {
@@ -26,11 +38,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -64,10 +72,10 @@ export default function DashboardPage() {
         .eq('status', 'open')
 
       // Calculate stats
-      const income = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0) || 0
-      const expenses = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0) || 0
-      const openPayables = payables?.filter(p => p.type === 'payable').reduce((sum, p) => sum + Number(p.amount), 0) || 0
-      const openReceivables = payables?.filter(p => p.type === 'receivable').reduce((sum, p) => sum + Number(p.amount), 0) || 0
+      const income = transactions?.filter((t: Transaction) => t.type === 'income').reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0) || 0
+      const expenses = transactions?.filter((t: Transaction) => t.type === 'expense').reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0) || 0
+      const openPayables = payables?.filter((p: { type: string; amount: number }) => p.type === 'payable').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      const openReceivables = payables?.filter((p: { type: string; amount: number }) => p.type === 'receivable').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
 
       // Get recent transactions
       const { data: recentTransactions } = await supabase
@@ -90,7 +98,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

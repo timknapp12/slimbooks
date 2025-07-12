@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,11 +61,7 @@ export default function TransactionsPage() {
     'Other'
   ]
 
-  useEffect(() => {
-    fetchTransactions()
-  }, [filterType, filterCategory, dateFrom, dateTo])
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -113,7 +111,11 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterType, filterCategory, dateFrom, dateTo, supabase, toast])
+
+  useEffect(() => {
+    fetchTransactions()
+  }, [fetchTransactions])
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -159,10 +161,11 @@ export default function TransactionsPage() {
         description: ''
       })
       fetchTransactions()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add transaction'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add transaction',
+        description: errorMessage,
         variant: 'destructive',
       })
     }

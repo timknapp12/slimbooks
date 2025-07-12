@@ -17,7 +17,7 @@ interface CSVUploadProps {
 export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<any[]>([])
+  const [preview, setPreview] = useState<Record<string, unknown>[]>([])
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -31,7 +31,7 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
         header: true,
         preview: 5,
         complete: (results) => {
-          setPreview(results.data)
+          setPreview(results.data as Record<string, unknown>[])
         }
       })
     }
@@ -74,16 +74,16 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
         header: true,
         complete: async (results) => {
           try {
-            const transactions = results.data
-              .filter((row: any) => row.Date && row.Amount && row.Description)
-              .map((row: any) => ({
+            const transactions = (results.data as Record<string, unknown>[])
+              .filter((row) => row.Date && row.Amount && row.Description)
+              .map((row) => ({
                 company_id: userData.company_id,
                 user_id: user.id,
-                date: new Date(row.Date).toISOString().split('T')[0],
-                amount: Math.abs(parseFloat(row.Amount)),
-                type: parseFloat(row.Amount) > 0 ? 'income' : 'expense',
+                date: new Date(row.Date as string).toISOString().split('T')[0],
+                amount: Math.abs(parseFloat(row.Amount as string)),
+                type: parseFloat(row.Amount as string) > 0 ? 'income' : 'expense',
                 category: 'Imported',
-                description: row.Description || 'Bank import',
+                description: (row.Description as string) || 'Bank import',
                 source: 'import'
               }))
 
@@ -114,19 +114,21 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
 
             onSuccess()
             onClose()
-          } catch (error: any) {
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to process CSV file'
             toast({
               title: 'Error',
-              description: error.message || 'Failed to process CSV file',
+              description: errorMessage,
               variant: 'destructive',
             })
           }
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload file'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to upload file',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -188,9 +190,9 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                       <tbody>
                         {preview.map((row, index) => (
                           <tr key={index}>
-                            {Object.values(row).map((value: any, cellIndex) => (
+                            {Object.values(row).map((value, cellIndex) => (
                               <td key={cellIndex} className="border border-gray-300 px-2 py-1 text-xs">
-                                {value}
+                                {String(value)}
                               </td>
                             ))}
                           </tr>

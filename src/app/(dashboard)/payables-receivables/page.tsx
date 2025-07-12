@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,11 +40,7 @@ export default function PayablesReceivablesPage() {
     due_date: ''
   })
 
-  useEffect(() => {
-    fetchItems()
-  }, [])
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -74,7 +72,11 @@ export default function PayablesReceivablesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, toast])
+
+  useEffect(() => {
+    fetchItems()
+  }, [fetchItems])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,10 +119,11 @@ export default function PayablesReceivablesPage() {
         due_date: ''
       })
       fetchItems()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add item'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add item',
+        description: errorMessage,
         variant: 'destructive',
       })
     }
@@ -141,10 +144,11 @@ export default function PayablesReceivablesPage() {
       })
 
       fetchItems()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update status'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update status',
+        description: errorMessage,
         variant: 'destructive',
       })
     }

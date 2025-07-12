@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -52,7 +54,7 @@ export default function SignupPage() {
         })
         router.push('/onboarding')
       }
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'An unexpected error occurred',

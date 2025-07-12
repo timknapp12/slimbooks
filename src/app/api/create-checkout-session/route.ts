@@ -41,10 +41,11 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ sessionId: session.id })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating checkout session:', error)
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred'
     return NextResponse.json(
-      { error: error.message },
+      { error: errorMessage },
       { status: 500 }
     )
   }

@@ -15,8 +15,9 @@ export async function POST(request: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     )
-  } catch (error: any) {
-    console.error('Webhook signature verification failed:', error.message)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Webhook signature verification failed:', errorMessage)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
@@ -28,18 +29,18 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session
         
         if (session.mode === 'subscription') {
-          const subscription = await stripe.subscriptions.retrieve(
+          const subscriptionData = await stripe.subscriptions.retrieve(
             session.subscription as string
           )
 
         await supabase
           .from('subscriptions')
           .update({
-            status: subscription.status,
-            current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-            current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+            status: subscriptionData.status,
+            current_period_start: new Date((subscriptionData as unknown as { current_period_start: number }).current_period_start * 1000).toISOString(),
+            current_period_end: new Date((subscriptionData as unknown as { current_period_end: number }).current_period_end * 1000).toISOString(),
           })
-          .eq('stripe_subscription_id', subscription.id)
+          .eq('stripe_subscription_id', subscriptionData.id)
         }
         break
       }
@@ -51,8 +52,9 @@ export async function POST(request: NextRequest) {
           .from('subscriptions')
           .update({
             status: subscription.status,
-              current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
-              current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),          })
+              current_period_start: new Date((subscription as unknown as { current_period_start: number }).current_period_start * 1000).toISOString(),
+              current_period_end: new Date((subscription as unknown as { current_period_end: number }).current_period_end * 1000).toISOString(),
+          })
           .eq('stripe_subscription_id', subscription.id)
         break
       }
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error processing webhook:', error)
     return NextResponse.json(
       { error: 'Webhook processing failed' },

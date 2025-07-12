@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -68,10 +70,11 @@ export default function OnboardingPage() {
       })
 
       router.push('/dashboard')
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create company profile'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to create company profile',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -85,7 +88,7 @@ export default function OnboardingPage() {
         <CardHeader>
           <CardTitle>Company Setup</CardTitle>
           <CardDescription>
-            Let's set up your company profile to get started
+            Let&apos;s set up your company profile to get started
           </CardDescription>
         </CardHeader>
         <CardContent>

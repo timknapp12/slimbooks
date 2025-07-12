@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,11 +43,7 @@ export default function SettingsPage() {
     accounting_method: 'cash' as 'cash' | 'accrual'
   })
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -58,7 +56,7 @@ export default function SettingsPage() {
 
       if (!userData?.company_id) return
 
-      const companyData = userData.companies as any
+      const companyData = userData.companies as unknown as Company
       setCompany(companyData)
       setCompanyForm({
         name: companyData.name || '',
@@ -84,7 +82,11 @@ export default function SettingsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, toast])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleUpdateCompany = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,10 +113,11 @@ export default function SettingsPage() {
       })
 
       fetchData()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update company information'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update company information',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {

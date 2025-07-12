@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+
+export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { FileText, Download } from 'lucide-react'
 
 interface ReportData {
@@ -65,11 +67,7 @@ export default function ReportsPage() {
   })
   const supabase = createClient()
 
-  useEffect(() => {
-    fetchReportData()
-  }, [dateFrom, dateTo, accountingMethod])
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -104,7 +102,7 @@ export default function ReportsPage() {
       let totalIncome = 0
       let totalExpenses = 0
 
-      transactions.forEach(transaction => {
+      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
         if (transaction.type === 'income') {
           incomeByCategory[transaction.category] = (incomeByCategory[transaction.category] || 0) + Number(transaction.amount)
           totalIncome += Number(transaction.amount)
@@ -115,8 +113,8 @@ export default function ReportsPage() {
       })
 
       // Calculate Balance Sheet (simplified)
-      const openReceivables = payables?.filter(p => p.type === 'receivable' && p.status === 'open').reduce((sum, p) => sum + Number(p.amount), 0) || 0
-      const openPayables = payables?.filter(p => p.type === 'payable' && p.status === 'open').reduce((sum, p) => sum + Number(p.amount), 0) || 0
+      const openReceivables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'receivable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      const openPayables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'payable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
       const cashBalance = totalIncome - totalExpenses // Simplified cash calculation
       
       const assets = cashBalance + openReceivables
@@ -154,7 +152,11 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateFrom, dateTo, supabase])
+
+  useEffect(() => {
+    fetchReportData()
+  }, [fetchReportData])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -364,7 +366,7 @@ export default function ReportsPage() {
                         </TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell>Owner's Equity</TableCell>
+                        <TableCell>Owner&apos;s Equity</TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(reportData.balanceSheet.equity)}
                         </TableCell>
