@@ -13,6 +13,7 @@ import {
   LogOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -35,10 +36,13 @@ export function Sidebar() {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col bg-gray-900">
-      <div className="flex h-16 shrink-0 items-center px-4">
-        <Building2 className="h-8 w-8 text-white" />
-        <span className="ml-2 text-xl font-semibold text-white">SimpleBooks</span>
+    <div className="flex h-full w-64 flex-col bg-card border-r">
+      <div className="flex h-16 shrink-0 items-center justify-between px-4">
+        <div className="flex items-center">
+          <Building2 className="h-8 w-8 text-primary" />
+          <span className="ml-2 text-xl font-semibold text-foreground">SimpleBooks</span>
+        </div>
+        <ThemeToggle />
       </div>
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navigation.map((item) => {
@@ -50,14 +54,14 @@ export function Sidebar() {
               className={cn(
                 'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
                 isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
             >
               <item.icon
                 className={cn(
                   'mr-3 h-5 w-5 flex-shrink-0',
-                  isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'
+                  isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-accent-foreground'
                 )}
               />
               {item.name}
@@ -69,7 +73,7 @@ export function Sidebar() {
         <Button
           onClick={handleSignOut}
           variant="ghost"
-          className="w-full justify-start text-gray-300 hover:bg-gray-700 hover:text-white"
+          className="w-full justify-start text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
           <LogOut className="mr-3 h-5 w-5" />
           Sign Out

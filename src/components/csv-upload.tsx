@@ -186,7 +186,7 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                   <div className="overflow-x-auto">
                     <table className="min-w-full border border-gray-300">
                       <thead>
-                        <tr className="bg-gray-50">
+                        <tr className="bg-muted/50">
                           {Object.keys(preview[0]).map((header) => (
                             <th key={header} className="border border-gray-300 px-2 py-1 text-xs">
                               {header}

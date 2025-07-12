@@ -413,7 +413,7 @@ export default function TransactionsPage() {
                   <TableCell>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       transaction.source === 'manual' 
-                        ? 'bg-gray-100 text-gray-800'
+                        ? 'bg-secondary text-secondary-foreground'
                         : 'bg-purple-100 text-purple-800'
                     }`}>
                       {transaction.source}
