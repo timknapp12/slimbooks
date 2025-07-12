@@ -12,8 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Upload, Filter } from 'lucide-react'
+import { Plus, Upload, Filter, Building2 } from 'lucide-react'
 import { CSVUpload } from '@/components/csv-upload'
+import { BankConnect } from '@/components/bank-connect'
+import { expenseCategories, incomeCategories, allCategories, autoCategorizeTranaction } from '@/lib/categorization'
 
 interface Transaction {
   id: string
@@ -30,6 +32,7 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false)
+  const [isBankConnectOpen, setIsBankConnectOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [dateFrom, setDateFrom] = useState('')
@@ -46,20 +49,32 @@ export default function TransactionsPage() {
     description: ''
   })
 
-  const categories = [
-    'Office Supplies',
-    'Travel',
-    'Meals & Entertainment',
-    'Professional Services',
-    'Software & Subscriptions',
-    'Marketing',
-    'Utilities',
-    'Rent',
-    'Insurance',
-    'Sales',
-    'Consulting',
-    'Other'
-  ]
+
+
+  const handleQuickCategorize = async (transactionId: string, newCategory: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ category: newCategory })
+        .eq('id', transactionId)
+
+      if (error) throw error
+
+      toast({
+        title: 'Success',
+        description: 'Transaction category updated',
+      })
+
+      fetchTransactions()
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update category'
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    }
+  }
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -192,6 +207,10 @@ export default function TransactionsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsBankConnectOpen(true)}>
+            <Building2 className="mr-2 h-4 w-4" />
+            Connect Bank
+          </Button>
           <Button variant="outline" onClick={() => setIsCSVUploadOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             Import CSV
@@ -254,7 +273,7 @@ export default function TransactionsPage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
+                      {(formData.type === 'income' ? incomeCategories : expenseCategories).map((category: string) => (
                         <SelectItem key={category} value={category}>
                           {category}
                         </SelectItem>
@@ -267,7 +286,15 @@ export default function TransactionsPage() {
                   <Input
                     id="description"
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => {
+                      const description = e.target.value
+                      const suggestedCategory = autoCategorizeTranaction(description, formData.type)
+                      setFormData({ 
+                        ...formData, 
+                        description,
+                        category: formData.category || suggestedCategory
+                      })
+                    }}
                     required
                   />
                 </div>
@@ -311,7 +338,7 @@ export default function TransactionsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
+                  {allCategories.map((category: string) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -356,6 +383,7 @@ export default function TransactionsPage() {
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Source</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -391,6 +419,23 @@ export default function TransactionsPage() {
                       {transaction.source}
                     </span>
                   </TableCell>
+                  <TableCell>
+                    <Select 
+                      value={transaction.category} 
+                      onValueChange={(value) => handleQuickCategorize(transaction.id, value)}
+                    >
+                      <SelectTrigger className="w-[140px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(transaction.type === 'income' ? incomeCategories : expenseCategories).map((category: string) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -406,6 +451,12 @@ export default function TransactionsPage() {
       <CSVUpload
         isOpen={isCSVUploadOpen}
         onClose={() => setIsCSVUploadOpen(false)}
+        onSuccess={fetchTransactions}
+      />
+
+      <BankConnect
+        isOpen={isBankConnectOpen}
+        onClose={() => setIsBankConnectOpen(false)}
         onSuccess={fetchTransactions}
       />
     </div>

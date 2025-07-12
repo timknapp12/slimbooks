@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useToast } from '@/hooks/use-toast'
 import { Upload } from 'lucide-react'
 import Papa from 'papaparse'
+import { autoCategorizeTranaction } from '@/lib/categorization'
 
 interface CSVUploadProps {
   isOpen: boolean
@@ -76,16 +77,22 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
           try {
             const transactions = (results.data as Record<string, unknown>[])
               .filter((row) => row.Date && row.Amount && row.Description)
-              .map((row) => ({
-                company_id: userData.company_id,
-                user_id: user.id,
-                date: new Date(row.Date as string).toISOString().split('T')[0],
-                amount: Math.abs(parseFloat(row.Amount as string)),
-                type: parseFloat(row.Amount as string) > 0 ? 'income' : 'expense',
-                category: 'Imported',
-                description: (row.Description as string) || 'Bank import',
-                source: 'import'
-              }))
+              .map((row) => {
+                const amount = parseFloat(row.Amount as string)
+                const type = amount > 0 ? 'income' : 'expense'
+                const description = (row.Description as string) || 'Bank import'
+                
+                return {
+                  company_id: userData.company_id,
+                  user_id: user.id,
+                  date: new Date(row.Date as string).toISOString().split('T')[0],
+                  amount: Math.abs(amount),
+                  type,
+                  category: autoCategorizeTranaction(description, type),
+                  description,
+                  source: 'import'
+                }
+              })
 
             if (transactions.length > 0) {
               const { error: transactionError } = await supabase
