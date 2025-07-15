@@ -42,22 +42,43 @@ export default function SignupPage() {
       })
 
       if (error) {
-        toast({
-          title: 'Error',
-          description: error.message,
-          variant: 'destructive',
-        })
+        // Provide more helpful error messages
+        if (error.message.includes('User already registered')) {
+          toast({
+            title: 'Account already exists',
+            description: 'An account with this email already exists. Try signing in instead.',
+            variant: 'destructive',
+          })
+        } else if (error.message.includes('Password should be at least')) {
+          toast({
+            title: 'Password too weak',
+            description: 'Password should be at least 6 characters long.',
+            variant: 'destructive',
+          })
+        } else if (error.message.includes('Invalid email')) {
+          toast({
+            title: 'Invalid email',
+            description: 'Please enter a valid email address.',
+            variant: 'destructive',
+          })
+        } else {
+          toast({
+            title: 'Sign up failed',
+            description: error.message,
+            variant: 'destructive',
+          })
+        }
       } else {
         toast({
-          title: 'Success',
-          description: 'Account created! Please check your email to verify your account.',
+          title: 'Account created successfully!',
+          description: 'Please check your email to verify your account.',
         })
         router.push('/onboarding')
       }
     } catch {
       toast({
         title: 'Error',
-        description: 'An unexpected error occurred',
+        description: 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
       })
     } finally {

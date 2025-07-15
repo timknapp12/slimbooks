@@ -25,24 +25,71 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // First, try to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) {
-        toast({
-          title: 'Error',
-          description: error.message,
-          variant: 'destructive',
-        })
+      if (signInError) {
+        // If sign-in fails due to invalid credentials, try to sign up automatically
+        if (signInError.message.includes('Invalid login credentials') || 
+            signInError.message.includes('Email not confirmed') ||
+            signInError.message.includes('User not found')) {
+          
+          toast({
+            title: 'Account not found',
+            description: 'Creating a new account for you...',
+          })
+
+          // Try to sign up with the same credentials
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+          })
+
+          if (signUpError) {
+            // If sign up also fails, show helpful error
+            if (signUpError.message.includes('User already registered')) {
+              toast({
+                title: 'Account exists but password is incorrect',
+                description: 'Please check your password or reset it if you forgot.',
+                variant: 'destructive',
+              })
+            } else {
+              toast({
+                title: 'Sign up failed',
+                description: signUpError.message,
+                variant: 'destructive',
+              })
+            }
+          } else {
+            // Sign up successful
+            toast({
+              title: 'Account created successfully!',
+              description: 'Please check your email to verify your account, then sign in.',
+            })
+          }
+        } else {
+          // Other sign-in errors
+          toast({
+            title: 'Sign in failed',
+            description: signInError.message,
+            variant: 'destructive',
+          })
+        }
       } else {
+        // Sign in successful
+        toast({
+          title: 'Welcome back!',
+          description: 'Successfully signed in.',
+        })
         router.push('/dashboard')
       }
     } catch {
       toast({
         title: 'Error',
-        description: 'An unexpected error occurred',
+        description: 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -56,7 +103,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>Sign In</CardTitle>
           <CardDescription>
-            Enter your email and password to access your account
+            Enter your email and password. New users will be automatically registered.
           </CardDescription>
         </CardHeader>
         <CardContent>
