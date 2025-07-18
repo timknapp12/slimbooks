@@ -89,6 +89,9 @@ CREATE POLICY "Users can view their own company" ON companies
         SELECT company_id FROM users WHERE id = auth.uid()
     ));
 
+CREATE POLICY "Users can insert companies" ON companies
+    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
 CREATE POLICY "Users can update their own company" ON companies
     FOR UPDATE USING (id IN (
         SELECT company_id FROM users WHERE id = auth.uid()
@@ -99,6 +102,9 @@ CREATE POLICY "Users can view users in their company" ON users
     FOR SELECT USING (company_id IN (
         SELECT company_id FROM users WHERE id = auth.uid()
     ));
+
+CREATE POLICY "Users can insert their own profile" ON users
+    FOR INSERT WITH CHECK (id = auth.uid());
 
 CREATE POLICY "Users can update their own profile" ON users
     FOR UPDATE USING (id = auth.uid());

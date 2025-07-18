@@ -1,147 +1,137 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
+import { useState } from 'react';
 
-export const dynamic = 'force-dynamic'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useToast } from '@/hooks/use-toast'
+export const dynamic = 'force-dynamic';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
-  const supabase = createClient()
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+  const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
-      // First, try to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-      })
+      });
 
-      if (signInError) {
-        // If sign-in fails due to invalid credentials, try to sign up automatically
-        if (signInError.message.includes('Invalid login credentials') || 
-            signInError.message.includes('Email not confirmed') ||
-            signInError.message.includes('User not found')) {
-          
-          toast({
-            title: 'Account not found',
-            description: 'Creating a new account for you...',
-          })
+      console.log('Login response:', { 
+        data: data ? { 
+          user: data.user ? { 
+            id: data.user.id, 
+            email: data.user.email, 
+            email_confirmed_at: data.user.email_confirmed_at,
+            confirmed_at: data.user.confirmed_at 
+          } : null, 
+          session: data.session ? 'present' : null 
+        } : null, 
+        error 
+      });
 
-          // Try to sign up with the same credentials
-          const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-          })
-
-          if (signUpError) {
-            // If sign up also fails, show helpful error
-            if (signUpError.message.includes('User already registered')) {
-              toast({
-                title: 'Account exists but password is incorrect',
-                description: 'Please check your password or reset it if you forgot.',
-                variant: 'destructive',
-              })
-            } else {
-              toast({
-                title: 'Sign up failed',
-                description: signUpError.message,
-                variant: 'destructive',
-              })
-            }
-          } else {
-            // Sign up successful
-            toast({
-              title: 'Account created successfully!',
-              description: 'Please check your email to verify your account, then sign in.',
-            })
-          }
-        } else {
-          // Other sign-in errors
+      if (error) {
+        if (
+          error.message.includes('Invalid login credentials') ||
+          error.message.includes('User not found')
+        ) {
           toast({
             title: 'Sign in failed',
-            description: signInError.message,
+            description:
+              "Invalid credentials. If you don't have an account, please sign up first.",
             variant: 'destructive',
-          })
+          });
+        } else {
+          toast({
+            title: 'Sign in failed',
+            description: error.message,
+            variant: 'destructive',
+          });
         }
       } else {
-        // Sign in successful
         toast({
           title: 'Welcome back!',
           description: 'Successfully signed in.',
-        })
-        router.push('/dashboard')
+        });
+        router.push('/dashboard');
       }
     } catch {
       toast({
         title: 'Error',
         description: 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md">
+    <div className='min-h-screen flex items-center justify-center bg-background'>
+      <Card className='w-full max-w-md'>
         <CardHeader>
           <CardTitle>Sign In</CardTitle>
           <CardDescription>
-            Enter your email and password. New users will be automatically registered.
+            Enter your email and password to sign in to your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+          <form onSubmit={handleLogin} className='space-y-4' suppressHydrationWarning>
+            <div className='space-y-2'>
+              <Label htmlFor='email'>Email</Label>
               <Input
-                id="email"
-                type="email"
+                id='email'
+                type='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                suppressHydrationWarning
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='password'>Password</Label>
               <Input
-                id="password"
-                type="password"
+                id='password'
+                type='password'
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                suppressHydrationWarning
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type='submit' className='w-full' disabled={loading} suppressHydrationWarning>
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-blue-600 hover:underline">
-                Sign up
-              </Link>
+          <div className='mt-4 text-center space-y-2'>
+            <p className='text-sm text-muted-foreground'>
+              Don&apos;t have an account?
             </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/signup">Sign Up</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

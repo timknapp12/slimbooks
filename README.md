@@ -1,32 +1,37 @@
-# SimpleBooks - Accounting Made Simple
+# SlimBooks - Accounting Made Simple
 
 A modern, full-stack accounting application built with Next.js 14, Supabase, and Stripe.
 
 ## Features
 
 ### 🔐 Authentication & User Management
+
 - Secure authentication with Supabase Auth
 - Role-based access control (Admin/Staff)
 - Company onboarding flow
 
 ### 💰 Financial Management
+
 - **Transactions**: Manual entry and CSV import
 - **Bank Integration**: Upload and parse bank statements
 - **Categories**: Automatic categorization of transactions
 - **Attachments**: Upload receipts and documents
 
 ### 📊 Financial Reports
+
 - **Profit & Loss Statement**
 - **Balance Sheet**
 - **Cash Flow Statement**
 - Support for both Cash and Accrual accounting methods
 
 ### 📋 Accounts Management
+
 - **Payables**: Track money you owe
 - **Receivables**: Track money owed to you
 - Due date tracking and overdue notifications
 
 ### ⚙️ Settings & Configuration
+
 - Company profile management
 - User management
 - Accounting method selection
@@ -43,7 +48,7 @@ A modern, full-stack accounting application built with Next.js 14, Supabase, and
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 - Supabase account
 - Stripe account (for billing)
@@ -51,24 +56,28 @@ A modern, full-stack accounting application built with Next.js 14, Supabase, and
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/timknapp12/slimbooks.git
    cd slimbooks
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
-   
+
    Copy `.env.local` and fill in your credentials:
+
    ```bash
    cp .env.local .env.local
    ```
-   
+
    Required environment variables:
+
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
@@ -79,19 +88,21 @@ A modern, full-stack accounting application built with Next.js 14, Supabase, and
    ```
 
 4. **Set up Supabase**
-   
+
    Run the SQL schema in your Supabase dashboard:
+
    ```bash
    # Copy the contents of supabase/schema.sql and run in Supabase SQL editor
    ```
 
 5. **Set up Stripe**
-   
+
    - Create a product and price in Stripe dashboard
    - Set up webhook endpoint: `your-domain.com/api/webhooks/stripe`
    - Add webhook events: `checkout.session.completed`, `invoice.payment_succeeded`, `customer.subscription.updated`, `customer.subscription.deleted`
 
 6. **Run the development server**
+
    ```bash
    npm run dev
    ```
@@ -114,6 +125,7 @@ The application uses the following main tables:
 ### Vercel Deployment
 
 1. **Deploy to Vercel**
+
    ```bash
    npm run build
    vercel --prod
@@ -142,6 +154,7 @@ The application uses the following main tables:
 ### CSV Import Format
 
 Bank statement CSV files should have the following columns:
+
 - `Date`: Transaction date (MM/DD/YYYY or YYYY-MM-DD)
 - `Amount`: Transaction amount (positive for income, negative for expenses)
 - `Description`: Transaction description

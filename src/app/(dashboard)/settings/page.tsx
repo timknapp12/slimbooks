@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [managingSubscription, setManagingSubscription] = useState(false)
+  const [hasSubscription, setHasSubscription] = useState(true)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -122,6 +124,84 @@ export default function SettingsPage() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleManageSubscription = async () => {
+    setManagingSubscription(true)
+    
+    try {
+      console.log('Making portal session request to:', window.location.origin + '/api/create-portal-session')
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Ensure cookies are sent
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        if (errorData.code === 'NO_SUBSCRIPTION') {
+          setHasSubscription(false)
+          toast({
+            title: 'No Subscription',
+            description: 'You need to subscribe first to manage your subscription.',
+            variant: 'destructive',
+          })
+          return
+        }
+        throw new Error('Failed to create portal session')
+      }
+
+      const { url } = await response.json()
+      window.location.href = url
+    } catch (error) {
+      console.error('Error creating portal session:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to open subscription management. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setManagingSubscription(false)
+    }
+  }
+
+  const handleSubscribe = async () => {
+    setManagingSubscription(true)
+    
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: 'price_1234567890' // You'll need to replace this with your actual Stripe price ID
+        }),
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session')
+      }
+
+      const { sessionId } = await response.json()
+      // Redirect to Stripe Checkout
+      const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!))
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId })
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to start subscription. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setManagingSubscription(false)
     }
   }
 
@@ -265,7 +345,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                <div className="p-6 border rounded-lg bg-blue-50">
+                <div className="p-6 border rounded-lg bg-blue-50 dark:bg-blue-950">
                   <h3 className="text-lg font-semibold mb-2">Basic Plan</h3>
                   <p className="text-muted-foreground mb-4">
                     Perfect for small businesses getting started with accounting
@@ -275,9 +355,15 @@ export default function SettingsPage() {
                       <span className="text-3xl font-bold">$29</span>
                       <span className="text-muted-foreground">/month</span>
                     </div>
-                    <Button>
-                      Manage Subscription
-                    </Button>
+                    {hasSubscription ? (
+                      <Button onClick={handleManageSubscription} disabled={managingSubscription}>
+                        {managingSubscription ? 'Loading...' : 'Manage Subscription'}
+                      </Button>
+                    ) : (
+                      <Button onClick={handleSubscribe} disabled={managingSubscription}>
+                        {managingSubscription ? 'Loading...' : 'Subscribe Now'}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
