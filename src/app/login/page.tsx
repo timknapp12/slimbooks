@@ -67,12 +67,41 @@ export default function LoginPage() {
             variant: 'destructive',
           });
         }
-      } else {
-        toast({
-          title: 'Welcome back!',
-          description: 'Successfully signed in.',
+      } else if (data.user) {
+        // Check if email is verified
+        if (!data.user.email_confirmed_at) {
+          toast({
+            title: 'Email verification required',
+            description: 'Please check your email and click the verification link to continue.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        // Check if user has completed onboarding
+        const { data: existingUser, error: userError } = await supabase
+          .from('users')
+          .select('id, company_id')
+          .eq('id', data.user.id)
+          .single();
+
+        console.log('Login user check:', { 
+          userId: data.user.id, 
+          existingUser, 
+          userError: userError?.message 
         });
-        router.push('/dashboard');
+
+        if (!existingUser || !existingUser.company_id) {
+          // User doesn't exist in our table or hasn't completed onboarding
+          toast({
+            title: 'Welcome!',
+            description: 'Let\'s set up your company.',
+          });
+          router.push('/onboarding');
+        } else {
+          // User exists and has completed onboarding
+          router.push('/dashboard');
+        }
       }
     } catch {
       toast({

@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 export async function POST(request: NextRequest) {
   try {
     const { priceId } = await request.json()
+    console.log('Creating checkout session with priceId:', priceId)
+    console.log('Using Stripe secret key:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...')
+    
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${request.nextUrl.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${request.nextUrl.origin}/settings?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.nextUrl.origin}/settings`,
       customer_email: user.email,
       metadata: {

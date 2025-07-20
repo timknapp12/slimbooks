@@ -11,11 +11,13 @@ import {
   Settings,
   Building2,
   LogOut,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -33,6 +35,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserEmail(user?.email || null);
+    };
+    getUser();
+  }, [supabase]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -77,7 +88,13 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className='p-4'>
+      <div className='p-4 space-y-2'>
+        {userEmail && (
+          <div className='flex items-center px-2 py-2 text-xs text-muted-foreground'>
+            <User className='mr-2 h-4 w-4' />
+            <span className='truncate'>{userEmail}</span>
+          </div>
+        )}
         <Button
           onClick={handleSignOut}
           variant='ghost'

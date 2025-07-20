@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export const dynamic = 'force-dynamic'
 import { useRouter } from 'next/navigation'
@@ -18,9 +18,32 @@ export default function OnboardingPage() {
   const [address, setAddress] = useState('')
   const [accountingMethod, setAccountingMethod] = useState<'cash' | 'accrual'>('cash')
   const [loading, setLoading] = useState(false)
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      if (!user.email_confirmed_at) {
+        setEmailVerified(false)
+      } else {
+        setEmailVerified(true)
+      }
+      
+      setCheckingAuth(false)
+    }
+
+    checkAuth()
+  }, [supabase, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,34 +57,25 @@ export default function OnboardingPage() {
         return
       }
 
-      // Create company
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({
-          name: companyName,
+      // Use API route to create company and user
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName,
           ein,
           address,
-          accounting_method: accountingMethod,
-        })
-        .select()
-        .single()
+          accountingMethod,
+        }),
+        credentials: 'include',
+      })
 
-      if (companyError) {
-        throw companyError
-      }
+      const result = await response.json()
 
-      // Update user with company_id
-      const { error: userError } = await supabase
-        .from('users')
-        .upsert({
-          id: user.id,
-          email: user.email!,
-          company_id: company.id,
-          role: 'admin',
-        })
-
-      if (userError) {
-        throw userError
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to complete onboarding')
       }
 
       toast({
@@ -80,6 +94,35 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingAuth) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
+
+  if (!emailVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Card className="w-full max-w-lg">
+          <CardHeader>
+            <CardTitle>Email Verification Required</CardTitle>
+            <CardDescription>
+              Please check your email and click the verification link before setting up your company.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center space-y-4">
+              <p className="text-sm text-muted-foreground">
+                We sent a verification link to your email address. Click the link to verify your account and continue with setup.
+              </p>
+              <Button onClick={() => router.push('/login')} variant="outline">
+                Back to Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

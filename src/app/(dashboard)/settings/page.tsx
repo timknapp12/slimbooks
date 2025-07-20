@@ -33,7 +33,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [managingSubscription, setManagingSubscription] = useState(false)
-  const [hasSubscription, setHasSubscription] = useState(true)
+  const [hasSubscription, setHasSubscription] = useState(false)
+  const [priceId, setPriceId] = useState<string | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -48,15 +49,27 @@ export default function SettingsPage() {
   const fetchData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
 
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('company_id, companies(*)')
         .eq('id', user.id)
         .single()
 
-      if (!userData?.company_id) return
+      if (userError || !userData) {
+        console.error('User not found in users table:', userError)
+        window.location.href = '/onboarding'
+        return
+      }
+
+      if (!userData?.company_id) {
+        window.location.href = '/onboarding'
+        return
+      }
 
       const companyData = userData.companies as unknown as Company
       setCompany(companyData)
@@ -74,6 +87,24 @@ export default function SettingsPage() {
         .eq('company_id', userData.company_id)
 
       setUsers(usersData || [])
+
+      // Check subscription status
+      const { data: subscriptionData } = await supabase
+        .from('subscriptions')
+        .select('stripe_customer_id, status')
+        .eq('company_id', userData.company_id)
+        .single()
+
+      setHasSubscription(!!subscriptionData?.stripe_customer_id && subscriptionData.status === 'active')
+
+      // Fetch pricing plan
+      const { data: pricingData } = await supabase
+        .from('pricing_plans')
+        .select('stripe_price_id')
+        .eq('is_active', true)
+        .single()
+
+      setPriceId(pricingData?.stripe_price_id || null)
     } catch (error) {
       console.error('Error fetching data:', error)
       toast({
@@ -142,6 +173,15 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
+        if (response.status === 401) {
+          toast({
+            title: 'Authentication Required',
+            description: 'Please sign in to access billing features.',
+            variant: 'destructive',
+          })
+          window.location.href = '/login'
+          return
+        }
         if (errorData.code === 'NO_SUBSCRIPTION') {
           setHasSubscription(false)
           toast({
@@ -169,6 +209,15 @@ export default function SettingsPage() {
   }
 
   const handleSubscribe = async () => {
+    if (!priceId) {
+      toast({
+        title: 'Error',
+        description: 'Pricing information not available. Please try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setManagingSubscription(true)
     
     try {
@@ -178,7 +227,7 @@ export default function SettingsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceId: 'price_1234567890' // You'll need to replace this with your actual Stripe price ID
+          priceId: priceId
         }),
         credentials: 'include',
       })
@@ -344,6 +393,18 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {!company ? (
+                <div className="text-center py-8">
+                  <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>
+                  <p className="text-muted-foreground mb-4">
+                    You need to set up your company information before accessing billing features.
+                  </p>
+                  <Button onClick={() => window.location.href = '/onboarding'}>
+                    Complete Company Setup
+                  </Button>
+                </div>
+              ) : (
               <div className="space-y-6">
                 <div className="p-6 border rounded-lg bg-blue-50 dark:bg-blue-950">
                   <h3 className="text-lg font-semibold mb-2">Basic Plan</h3>
@@ -379,16 +440,19 @@ export default function SettingsPage() {
                   </ul>
                 </div>
 
-                <div className="pt-4 border-t">
-                  <h4 className="font-semibold mb-2">Payment Method</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Visa ending in 4242 • Expires 12/25
-                  </p>
-                  <Button variant="outline" className="mt-2">
-                    Update Payment Method
-                  </Button>
-                </div>
+                {hasSubscription && (
+                  <div className="pt-4 border-t">
+                    <h4 className="font-semibold mb-2">Payment Method</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Payment method on file
+                    </p>
+                    <Button variant="outline" className="mt-2">
+                      Update Payment Method
+                    </Button>
+                  </div>
+                )}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

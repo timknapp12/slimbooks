@@ -79,9 +79,10 @@ export default function SignupPage() {
       } else {
         toast({
           title: 'Account created successfully!',
-          description: 'Welcome to SlimBooks. Redirecting to your dashboard...',
+          description: 'Please check your email and click the verification link before continuing.',
+          duration: 300000, // 5 minutes (300,000ms) - very long but not infinite
         });
-        router.push('/dashboard');
+        router.push('/login');
       }
     } catch {
       toast({
