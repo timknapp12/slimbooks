@@ -37,6 +37,13 @@ interface DashboardStats {
   recentTransactions: Transaction[]
 }
 
+interface DashboardReportData {
+  type: 'pl' | 'bs' | 'cf'
+  title: string
+  period: string
+  data: ReportData
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     totalIncome: 0,
@@ -63,7 +70,7 @@ export default function DashboardPage() {
     fromDate: getFirstDayOfYear(new Date().getFullYear()),
     toDate: getLastDayOfYear(new Date().getFullYear())
   })
-  const [reportData, setReportData] = useState<any>(null)
+  const [reportData, setReportData] = useState<DashboardReportData | null>(null)
   const [reportLoading, setReportLoading] = useState(false)
   const [pdfGenerating, setPdfGenerating] = useState(false)
   const supabase = createClient()
@@ -124,7 +131,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [supabase, currentCompany])
 
   useEffect(() => {
     if (currentCompany) {
@@ -228,11 +235,12 @@ export default function DashboardPage() {
     }
   }
 
-  const fetchReportData = async (reportType: 'pl' | 'bs' | 'cf') => {
+  const fetchReportData = useCallback(async (reportType: 'pl' | 'bs' | 'cf') => {
     if (!currentCompany) return
 
     setReportLoading(true)
     try {
+      // Get transactions for the date range
       const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
@@ -240,169 +248,210 @@ export default function DashboardPage() {
         .gte('date', reportDateRange.fromDate)
         .lte('date', reportDateRange.toDate)
 
+      // Get payables/receivables
+      const { data: payables } = await supabase
+        .from('payables_receivables')
+        .select('*')
+        .eq('company_id', currentCompany.id)
+
       if (!transactions) return
 
-      let reportData: any = {}
+      // Calculate Profit & Loss according to GAAP standards
+      const revenueByCategory: { [key: string]: number } = {}
+      const costOfGoodsSoldByCategory: { [key: string]: number } = {}
+      const operatingExpensesByCategory: { [key: string]: number } = {}
+      const otherIncomeByCategory: { [key: string]: number } = {}
+      const otherExpensesByCategory: { [key: string]: number } = {}
+      
+      let totalRevenue = 0
+      let totalCostOfGoodsSold = 0
+      let totalOperatingExpenses = 0
+      let totalOtherIncome = 0
+      let totalOtherExpenses = 0
 
-      if (reportType === 'pl') {
-        // Profit & Loss Statement
-        const income = transactions.filter((t: Transaction) => t.type === 'income')
-        const expenses = transactions.filter((t: Transaction) => t.type === 'expense')
+      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
+        const amount = Number(transaction.amount)
         
-        const incomeByCategory = income.reduce((acc: any, t: Transaction) => {
-          acc[t.category] = (acc[t.category] || 0) + Number(t.amount)
-          return acc
-        }, {})
-        
-        const expensesByCategory = expenses.reduce((acc: any, t: Transaction) => {
-          acc[t.category] = (acc[t.category] || 0) + Number(t.amount)
-          return acc
-        }, {})
-
-        const totalIncome = income.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const totalExpenses = expenses.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const netIncome = totalIncome - totalExpenses
-
-        reportData = {
-          type: 'pl',
-          title: 'Profit & Loss Statement',
-          period: `${formatDate(reportDateRange.fromDate)} - ${formatDate(reportDateRange.toDate)}`,
-          income: incomeByCategory,
-          expenses: expensesByCategory,
-          totalIncome,
-          totalExpenses,
-          netIncome
+        if (transaction.type === 'income') {
+          // Categorize income into Revenue vs Other Income
+          if (['Sales Revenue', 'Service Revenue', 'Consulting Income', 'Rental Income'].includes(transaction.category)) {
+            revenueByCategory[transaction.category] = (revenueByCategory[transaction.category] || 0) + amount
+            totalRevenue += amount
+          } else {
+            otherIncomeByCategory[transaction.category] = (otherIncomeByCategory[transaction.category] || 0) + amount
+            totalOtherIncome += amount
+          }
+        } else if (transaction.type === 'expense') {
+          // Categorize expenses into COGS vs Operating Expenses vs Other Expenses
+          if (['Cost of Goods Sold', 'Inventory', 'Materials', 'Direct Labor'].includes(transaction.category)) {
+            costOfGoodsSoldByCategory[transaction.category] = (costOfGoodsSoldByCategory[transaction.category] || 0) + amount
+            totalCostOfGoodsSold += amount
+          } else if (['Office Supplies', 'Travel', 'Meals & Entertainment', 'Software & Subscriptions', 'Marketing', 'Utilities', 'Rent', 'Insurance', 'Equipment', 'Legal & Accounting', 'Bank Fees', 'Professional Services'].includes(transaction.category)) {
+            operatingExpensesByCategory[transaction.category] = (operatingExpensesByCategory[transaction.category] || 0) + amount
+            totalOperatingExpenses += amount
+          } else {
+            otherExpensesByCategory[transaction.category] = (otherExpensesByCategory[transaction.category] || 0) + amount
+            totalOtherExpenses += amount
+          }
         }
-      } else if (reportType === 'bs') {
-        // Balance Sheet
-        const assets = transactions.filter((t: Transaction) => t.type === 'asset')
-        const liabilities = transactions.filter((t: Transaction) => t.type === 'liability')
-        const equity = transactions.filter((t: Transaction) => t.type === 'equity')
+      })
 
-        const assetsByCategory = assets.reduce((acc: any, t: Transaction) => {
-          acc[t.category] = (acc[t.category] || 0) + Number(t.amount)
-          return acc
-        }, {})
+      // Calculate Balance Sheet according to GAAP standards
+      const assetsByCategory: { [key: string]: number } = {}
+      const liabilitiesByCategory: { [key: string]: number } = {}
+      const equityByCategory: { [key: string]: number } = {}
+      
+      let totalAssets = 0
+      let totalLiabilities = 0
+      let totalEquity = 0
 
-        const liabilitiesByCategory = liabilities.reduce((acc: any, t: Transaction) => {
-          acc[t.category] = (acc[t.category] || 0) + Number(t.amount)
-          return acc
-        }, {})
+      // Process all transactions for balance sheet
+      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
+        const amount = Number(transaction.amount)
+        
+        if (transaction.type === 'asset') {
+          assetsByCategory[transaction.category] = (assetsByCategory[transaction.category] || 0) + amount
+          totalAssets += amount
+        } else if (transaction.type === 'liability') {
+          liabilitiesByCategory[transaction.category] = (liabilitiesByCategory[transaction.category] || 0) + amount
+          totalLiabilities += amount
+        } else if (transaction.type === 'equity') {
+          equityByCategory[transaction.category] = (equityByCategory[transaction.category] || 0) + amount
+          totalEquity += amount
+        }
+      })
 
-        const equityByCategory = equity.reduce((acc: any, t: Transaction) => {
-          acc[t.category] = (acc[t.category] || 0) + Number(t.amount)
-          return acc
-        }, {})
+      // Add payables/receivables to balance sheet
+      const openReceivables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'receivable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      const openPayables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'payable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      
+      if (openReceivables > 0) {
+        assetsByCategory['Accounts Receivable'] = (assetsByCategory['Accounts Receivable'] || 0) + openReceivables
+        totalAssets += openReceivables
+      }
+      
+      if (openPayables > 0) {
+        liabilitiesByCategory['Accounts Payable'] = (liabilitiesByCategory['Accounts Payable'] || 0) + openPayables
+        totalLiabilities += openPayables
+      }
 
-        const totalAssets = assets.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const totalLiabilities = liabilities.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const totalEquity = equity.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
+      // Calculate net income for retained earnings
+      const grossProfit = totalRevenue - totalCostOfGoodsSold
+      const operatingIncome = grossProfit - totalOperatingExpenses
+      const netIncome = operatingIncome + totalOtherIncome - totalOtherExpenses
+      
+      // Add net income to retained earnings in equity
+      if (netIncome !== 0) {
+        equityByCategory['Retained Earnings'] = (equityByCategory['Retained Earnings'] || 0) + netIncome
+        totalEquity += netIncome
+      }
 
-        reportData = {
-          type: 'bs',
-          title: 'Balance Sheet',
-          period: `As of ${formatDate(reportDateRange.toDate)}`,
+      // Calculate Cash Flow Statement according to GAAP standards
+      const operatingActivitiesByCategory: { [key: string]: number } = {}
+      const investingActivitiesByCategory: { [key: string]: number } = {}
+      const financingActivitiesByCategory: { [key: string]: number } = {}
+      
+      let totalOperatingActivities = 0
+      let totalInvestingActivities = 0
+      let totalFinancingActivities = 0
+
+      // Process all transactions for cash flow categorization
+      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
+        const amount = Number(transaction.amount)
+        
+        if (transaction.type === 'income') {
+          // Operating activities - revenue generation
+          operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) + amount
+          totalOperatingActivities += amount
+        } else if (transaction.type === 'expense') {
+          // Operating activities - expense payments
+          operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) - amount
+          totalOperatingActivities -= amount
+        } else if (transaction.type === 'asset') {
+          // Investing activities - asset purchases/sales
+          if (['Equipment', 'Furniture', 'Vehicles', 'Buildings', 'Land'].includes(transaction.category)) {
+            investingActivitiesByCategory[transaction.category] = (investingActivitiesByCategory[transaction.category] || 0) - amount
+            totalInvestingActivities -= amount
+          } else {
+            // Other assets might be operating (inventory, prepaid expenses)
+            operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) - amount
+            totalOperatingActivities -= amount
+          }
+        } else if (transaction.type === 'liability') {
+          // Financing activities - debt transactions
+          financingActivitiesByCategory[transaction.category] = (financingActivitiesByCategory[transaction.category] || 0) + amount
+          totalFinancingActivities += amount
+        } else if (transaction.type === 'equity') {
+          // Financing activities - equity transactions
+          if (['Owner\'s Capital', 'Owner\'s Draws', 'Owner\'s Draw', 'Owner\'s Contribution', 'Common Stock'].includes(transaction.category)) {
+            financingActivitiesByCategory[transaction.category] = (financingActivitiesByCategory[transaction.category] || 0) + amount
+            totalFinancingActivities += amount
+          } else if (['Loan Transaction', 'Investment Transaction'].includes(transaction.category)) {
+            financingActivitiesByCategory[transaction.category] = (financingActivitiesByCategory[transaction.category] || 0) + amount
+            totalFinancingActivities += amount
+          } else {
+            // Internal transfers and other equity items
+            operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) + amount
+            totalOperatingActivities += amount
+          }
+        }
+      })
+
+      // Add net income as starting point for operating activities
+      if (netIncome !== 0) {
+        operatingActivitiesByCategory['Net Income'] = (operatingActivitiesByCategory['Net Income'] || 0) + netIncome
+        totalOperatingActivities += netIncome
+      }
+
+      // Add changes in working capital (simplified)
+      const changeInReceivables = openReceivables > 0 ? -openReceivables : 0
+      const changeInPayables = openPayables > 0 ? openPayables : 0
+      
+      if (changeInReceivables !== 0) {
+        operatingActivitiesByCategory['Change in Accounts Receivable'] = changeInReceivables
+        totalOperatingActivities += changeInReceivables
+      }
+      
+      if (changeInPayables !== 0) {
+        operatingActivitiesByCategory['Change in Accounts Payable'] = changeInPayables
+        totalOperatingActivities += changeInPayables
+      }
+
+      const netCashFlow = totalOperatingActivities + totalInvestingActivities + totalFinancingActivities
+
+      // Create the full ReportData object
+      const fullReportData: ReportData = {
+        profitLoss: {
+          revenue: revenueByCategory,
+          costOfGoodsSold: costOfGoodsSoldByCategory,
+          operatingExpenses: operatingExpensesByCategory,
+          otherIncome: otherIncomeByCategory,
+          otherExpenses: otherExpensesByCategory,
+          totalRevenue,
+          totalCostOfGoodsSold,
+          totalOperatingExpenses,
+          totalOtherIncome,
+          totalOtherExpenses,
+          grossProfit,
+          operatingIncome,
+          netIncome
+        },
+        balanceSheet: {
           assets: assetsByCategory,
           liabilities: liabilitiesByCategory,
           equity: equityByCategory,
           totalAssets,
           totalLiabilities,
           totalEquity
-        }
-      } else if (reportType === 'cf') {
-        // Cash Flow Statement
-        const income = transactions.filter((t: Transaction) => t.type === 'income')
-        const expenses = transactions.filter((t: Transaction) => t.type === 'expense')
-        const assets = transactions.filter((t: Transaction) => t.type === 'asset')
-        const liabilities = transactions.filter((t: Transaction) => t.type === 'liability')
-
-        const operatingIncome = income.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const operatingExpenses = expenses.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const netOperatingCash = operatingIncome - operatingExpenses
-
-        const investingActivities = assets.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-        const financingActivities = liabilities.reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0)
-
-        const netCashFlow = netOperatingCash - investingActivities + financingActivities
-
-        reportData = {
-          type: 'cf',
-          title: 'Cash Flow Statement',
-          period: `${formatDate(reportDateRange.fromDate)} - ${formatDate(reportDateRange.toDate)}`,
-          operatingIncome,
-          operatingExpenses,
-          netOperatingCash,
-          investingActivities,
-          financingActivities,
-          netCashFlow
-        }
-      }
-
-      setReportData(reportData)
-    } catch (error) {
-      console.error('Error fetching report data:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to generate report',
-        variant: 'destructive',
-      })
-    } finally {
-      setReportLoading(false)
-    }
-  }
-
-  const openReportModal = (reportType: 'pl' | 'bs' | 'cf') => {
-    setCurrentReport(reportType)
-    setReportModalOpen(true)
-    fetchReportData(reportType)
-  }
-
-  // Auto-update report when date range changes
-  useEffect(() => {
-    if (reportModalOpen && currentReport) {
-      fetchReportData(currentReport)
-    }
-  }, [reportDateRange.fromDate, reportDateRange.toDate, reportModalOpen, currentReport])
-
-  const downloadReportPDF = async () => {
-    if (!reportData || !currentCompany) return
-
-    try {
-      setPdfGenerating(true)
-
-      // Prepare report data in the format expected by the PDF generator
-      const pdfReportData: ReportData = {
-        profitLoss: {
-          revenue: reportData.type === 'pl' ? reportData.income : {},
-          costOfGoodsSold: {},
-          operatingExpenses: reportData.type === 'pl' ? reportData.expenses : {},
-          otherIncome: {},
-          otherExpenses: {},
-          totalRevenue: reportData.type === 'pl' ? reportData.totalIncome : 0,
-          totalCostOfGoodsSold: 0,
-          totalOperatingExpenses: reportData.type === 'pl' ? reportData.totalExpenses : 0,
-          totalOtherIncome: 0,
-          totalOtherExpenses: 0,
-          grossProfit: reportData.type === 'pl' ? reportData.totalIncome : 0,
-          operatingIncome: reportData.type === 'pl' ? reportData.netIncome : 0,
-          netIncome: reportData.type === 'pl' ? reportData.netIncome : 0
-        },
-        balanceSheet: {
-          assets: reportData.type === 'bs' ? reportData.assets : {},
-          liabilities: reportData.type === 'bs' ? reportData.liabilities : {},
-          equity: reportData.type === 'bs' ? reportData.equity : {},
-          totalAssets: reportData.type === 'bs' ? reportData.totalAssets : 0,
-          totalLiabilities: reportData.type === 'bs' ? reportData.totalLiabilities : 0,
-          totalEquity: reportData.type === 'bs' ? reportData.totalEquity : 0
         },
         cashFlow: {
-          operatingActivities: {},
-          investingActivities: {},
-          financingActivities: {},
-          totalOperatingActivities: reportData.type === 'cf' ? reportData.netOperatingCash : 0,
-          totalInvestingActivities: reportData.type === 'cf' ? reportData.investingActivities : 0,
-          totalFinancingActivities: reportData.type === 'cf' ? reportData.financingActivities : 0,
-          netCashFlow: reportData.type === 'cf' ? reportData.netCashFlow : 0
+          operatingActivities: operatingActivitiesByCategory,
+          investingActivities: investingActivitiesByCategory,
+          financingActivities: financingActivitiesByCategory,
+          totalOperatingActivities,
+          totalInvestingActivities,
+          totalFinancingActivities,
+          netCashFlow
         },
         generalLedger: {
           accounts: {},
@@ -417,18 +466,61 @@ export default function DashboardPage() {
         }
       }
 
+      // Create the dashboard report data
+      const dashboardReportData: DashboardReportData = {
+        type: reportType,
+        title: reportType === 'pl' ? 'Profit & Loss Statement' : 
+              reportType === 'bs' ? 'Balance Sheet' : 'Cash Flow Statement',
+        period: reportType === 'bs' ? 
+          `As of ${formatDate(reportDateRange.toDate)}` : 
+          `${formatDate(reportDateRange.fromDate)} - ${formatDate(reportDateRange.toDate)}`,
+        data: fullReportData
+      }
+
+      setReportData(dashboardReportData)
+    } catch (error) {
+      console.error('Error fetching report data:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to generate report',
+        variant: 'destructive',
+      })
+    } finally {
+      setReportLoading(false)
+    }
+  }, [currentCompany, reportDateRange.fromDate, reportDateRange.toDate, supabase, toast])
+
+  const openReportModal = (reportType: 'pl' | 'bs' | 'cf') => {
+    setCurrentReport(reportType)
+    setReportModalOpen(true)
+    fetchReportData(reportType)
+  }
+
+  // Auto-update report when date range changes
+  useEffect(() => {
+    if (reportModalOpen && currentReport) {
+      fetchReportData(currentReport)
+    }
+  }, [reportDateRange.fromDate, reportDateRange.toDate, reportModalOpen, currentReport, fetchReportData])
+
+  const downloadReportPDF = async () => {
+    if (!reportData || !currentCompany) return
+
+    try {
+      setPdfGenerating(true)
+
       // Determine report type for PDF generation
       const reportType = reportData.type === 'pl' ? 'profit-loss' : 
                         reportData.type === 'bs' ? 'balance-sheet' : 
                         reportData.type === 'cf' ? 'cash-flow' : 'all'
 
-      // Generate PDF
+      // Generate PDF using the full report data
       const pdfBytes = await generateFinancialReportPDF({
         companyName: currentCompany.name,
         dateFrom: reportDateRange.fromDate,
         dateTo: reportDateRange.toDate,
         accountingMethod: 'cash',
-        reportData: pdfReportData,
+        reportData: reportData.data,
         reportType
       })
 
@@ -893,8 +985,8 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {reportData.type === 'pl' && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Income</h3>
-                  {Object.entries(reportData.income).map(([category, amount]: [string, any]) => (
+                  <h3 className="text-lg font-semibold mb-4">Revenue</h3>
+                  {Object.entries(reportData.data.profitLoss.revenue).map(([category, amount]: [string, number]) => (
                     <div key={category} className="flex justify-between py-1">
                       <span>{category}</span>
                       <span className="text-green-600 font-medium">{formatCurrency(amount)}</span>
@@ -902,13 +994,13 @@ export default function DashboardPage() {
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
-                      <span>Total Income</span>
-                      <span className="text-green-600">{formatCurrency(reportData.totalIncome)}</span>
+                      <span>Total Revenue</span>
+                      <span className="text-green-600">{formatCurrency(reportData.data.profitLoss.totalRevenue)}</span>
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-semibold mb-4 mt-6">Expenses</h3>
-                  {Object.entries(reportData.expenses).map(([category, amount]: [string, any]) => (
+                  <h3 className="text-lg font-semibold mb-4 mt-6">Cost of Goods Sold</h3>
+                  {Object.entries(reportData.data.profitLoss.costOfGoodsSold).map(([category, amount]: [string, number]) => (
                     <div key={category} className="flex justify-between py-1">
                       <span>{category}</span>
                       <span className="text-red-600 font-medium">{formatCurrency(amount)}</span>
@@ -916,16 +1008,62 @@ export default function DashboardPage() {
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
-                      <span>Total Expenses</span>
-                      <span className="text-red-600">{formatCurrency(reportData.totalExpenses)}</span>
+                      <span>Total COGS</span>
+                      <span className="text-red-600">{formatCurrency(reportData.data.profitLoss.totalCostOfGoodsSold)}</span>
                     </div>
                   </div>
+
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Gross Profit</span>
+                      <span className={reportData.data.profitLoss.grossProfit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.profitLoss.grossProfit)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-semibold mb-4 mt-6">Operating Expenses</h3>
+                  {Object.entries(reportData.data.profitLoss.operatingExpenses).map(([category, amount]: [string, number]) => (
+                    <div key={category} className="flex justify-between py-1">
+                      <span>{category}</span>
+                      <span className="text-red-600 font-medium">{formatCurrency(amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Operating Expenses</span>
+                      <span className="text-red-600">{formatCurrency(reportData.data.profitLoss.totalOperatingExpenses)}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Operating Income</span>
+                      <span className={reportData.data.profitLoss.operatingIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.profitLoss.operatingIncome)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-semibold mb-4 mt-6">Other Income & Expenses</h3>
+                  {Object.entries(reportData.data.profitLoss.otherIncome).map(([category, amount]: [string, number]) => (
+                    <div key={category} className="flex justify-between py-1">
+                      <span>{category}</span>
+                      <span className="text-green-600 font-medium">{formatCurrency(amount)}</span>
+                    </div>
+                  ))}
+                  {Object.entries(reportData.data.profitLoss.otherExpenses).map(([category, amount]: [string, number]) => (
+                    <div key={category} className="flex justify-between py-1">
+                      <span>{category}</span>
+                      <span className="text-red-600 font-medium">{formatCurrency(amount)}</span>
+                    </div>
+                  ))}
 
                   <div className="border-t-2 pt-4 mt-6">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Net Income</span>
-                      <span className={reportData.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(reportData.netIncome)}
+                      <span className={reportData.data.profitLoss.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.profitLoss.netIncome)}
                       </span>
                     </div>
                   </div>
@@ -935,7 +1073,7 @@ export default function DashboardPage() {
               {reportData.type === 'bs' && (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Assets</h3>
-                  {Object.entries(reportData.assets).map(([category, amount]: [string, any]) => (
+                  {Object.entries(reportData.data.balanceSheet.assets).map(([category, amount]: [string, number]) => (
                     <div key={category} className="flex justify-between py-1">
                       <span>{category}</span>
                       <span className="font-medium">{formatCurrency(amount)}</span>
@@ -944,12 +1082,12 @@ export default function DashboardPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Assets</span>
-                      <span>{formatCurrency(reportData.totalAssets)}</span>
+                      <span>{formatCurrency(reportData.data.balanceSheet.totalAssets)}</span>
                     </div>
                   </div>
 
                   <h3 className="text-lg font-semibold mb-4 mt-6">Liabilities</h3>
-                  {Object.entries(reportData.liabilities).map(([category, amount]: [string, any]) => (
+                  {Object.entries(reportData.data.balanceSheet.liabilities).map(([category, amount]: [string, number]) => (
                     <div key={category} className="flex justify-between py-1">
                       <span>{category}</span>
                       <span className="font-medium">{formatCurrency(amount)}</span>
@@ -958,12 +1096,12 @@ export default function DashboardPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Liabilities</span>
-                      <span>{formatCurrency(reportData.totalLiabilities)}</span>
+                      <span>{formatCurrency(reportData.data.balanceSheet.totalLiabilities)}</span>
                     </div>
                   </div>
 
                   <h3 className="text-lg font-semibold mb-4 mt-6">Equity</h3>
-                  {Object.entries(reportData.equity).map(([category, amount]: [string, any]) => (
+                  {Object.entries(reportData.data.balanceSheet.equity).map(([category, amount]: [string, number]) => (
                     <div key={category} className="flex justify-between py-1">
                       <span>{category}</span>
                       <span className="font-medium">{formatCurrency(amount)}</span>
@@ -972,7 +1110,7 @@ export default function DashboardPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Equity</span>
-                      <span>{formatCurrency(reportData.totalEquity)}</span>
+                      <span>{formatCurrency(reportData.data.balanceSheet.totalEquity)}</span>
                     </div>
                   </div>
                 </div>
@@ -981,42 +1119,58 @@ export default function DashboardPage() {
               {reportData.type === 'cf' && (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Operating Activities</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Operating Income</span>
-                      <span className="text-green-600 font-medium">{formatCurrency(reportData.operatingIncome)}</span>
+                  {Object.entries(reportData.data.cashFlow.operatingActivities).map(([category, amount]: [string, number]) => (
+                    <div key={category} className="flex justify-between py-1">
+                      <span>{category}</span>
+                      <span className={amount >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(amount)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Operating Expenses</span>
-                      <span className="text-red-600 font-medium">{formatCurrency(reportData.operatingExpenses)}</span>
-                    </div>
-                    <div className="border-t pt-2">
-                      <div className="flex justify-between font-semibold">
-                        <span>Net Operating Cash</span>
-                        <span className={reportData.netOperatingCash >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {formatCurrency(reportData.netOperatingCash)}
-                        </span>
-                      </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Operating Activities</span>
+                      <span className={reportData.data.cashFlow.totalOperatingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.cashFlow.totalOperatingActivities)}
+                      </span>
                     </div>
                   </div>
 
                   <h3 className="text-lg font-semibold mb-4 mt-6">Investing Activities</h3>
-                  <div className="flex justify-between">
-                    <span>Investing Activities</span>
-                    <span className="text-red-600 font-medium">{formatCurrency(reportData.investingActivities)}</span>
+                  {Object.entries(reportData.data.cashFlow.investingActivities).map(([category, amount]: [string, number]) => (
+                    <div key={category} className="flex justify-between py-1">
+                      <span>{category}</span>
+                      <span className={amount >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Investing Activities</span>
+                      <span className={reportData.data.cashFlow.totalInvestingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.cashFlow.totalInvestingActivities)}
+                      </span>
+                    </div>
                   </div>
 
                   <h3 className="text-lg font-semibold mb-4 mt-6">Financing Activities</h3>
-                  <div className="flex justify-between">
-                    <span>Financing Activities</span>
-                    <span className="text-green-600 font-medium">{formatCurrency(reportData.financingActivities)}</span>
+                  {Object.entries(reportData.data.cashFlow.financingActivities).map(([category, amount]: [string, number]) => (
+                    <div key={category} className="flex justify-between py-1">
+                      <span>{category}</span>
+                      <span className={amount >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Financing Activities</span>
+                      <span className={reportData.data.cashFlow.totalFinancingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.cashFlow.totalFinancingActivities)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="border-t-2 pt-4 mt-6">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Net Cash Flow</span>
-                      <span className={reportData.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(reportData.netCashFlow)}
+                      <span className={reportData.data.cashFlow.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.data.cashFlow.netCashFlow)}
                       </span>
                     </div>
                   </div>
