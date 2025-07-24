@@ -88,23 +88,44 @@ export default function SettingsPage() {
 
       setUsers(usersData || [])
 
-      // Check subscription status
-      const { data: subscriptionData } = await supabase
-        .from('subscriptions')
-        .select('stripe_customer_id, status')
-        .eq('company_id', userData.company_id)
-        .single()
+      // Check subscription status (handle gracefully if table doesn't exist)
+      try {
+        // First check if the table exists by trying a simple query
+        const { data: subscriptionData, error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .select('stripe_customer_id, status')
+          .eq('company_id', userData.company_id)
+          .maybeSingle() // Use maybeSingle instead of single to avoid errors if no data
 
-      setHasSubscription(!!subscriptionData?.stripe_customer_id && subscriptionData.status === 'active')
+        if (subscriptionError) {
+          console.warn('Subscriptions table not available:', subscriptionError)
+          setHasSubscription(false)
+        } else {
+          setHasSubscription(!!subscriptionData?.stripe_customer_id && subscriptionData.status === 'active')
+        }
+      } catch (error) {
+        console.warn('Subscriptions table not available:', error)
+        setHasSubscription(false)
+      }
 
-      // Fetch pricing plan
-      const { data: pricingData } = await supabase
-        .from('pricing_plans')
-        .select('stripe_price_id')
-        .eq('is_active', true)
-        .single()
+      // Fetch pricing plan (handle gracefully if table doesn't exist)
+      try {
+        const { data: pricingData, error: pricingError } = await supabase
+          .from('pricing_plans')
+          .select('stripe_price_id')
+          .eq('is_active', true)
+          .maybeSingle() // Use maybeSingle instead of single to avoid errors if no data
 
-      setPriceId(pricingData?.stripe_price_id || null)
+        if (pricingError) {
+          console.warn('Pricing plans table not available:', pricingError)
+          setPriceId(null)
+        } else {
+          setPriceId(pricingData?.stripe_price_id || null)
+        }
+      } catch (error) {
+        console.warn('Pricing plans table not available:', error)
+        setPriceId(null)
+      }
     } catch (error) {
       console.error('Error fetching data:', error)
       toast({

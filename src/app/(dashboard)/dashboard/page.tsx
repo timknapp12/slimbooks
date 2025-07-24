@@ -6,13 +6,14 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, TrendingDown, Users } from 'lucide-react'
+import { formatDate, getFirstDayOfMonth, getLastDayOfMonth } from '@/lib/date-utils'
 
 interface Transaction {
   id: string
   description: string
   date: string
   category: string
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'asset' | 'liability' | 'equity'
   amount: number
   created_at: string
 }
@@ -53,16 +54,12 @@ export default function DashboardPage() {
       if (!userData?.company_id) return
 
       // Get transactions for current month
-      const currentMonth = new Date()
-      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
-      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
-
       const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
         .eq('company_id', userData.company_id)
-        .gte('date', firstDay.toISOString().split('T')[0])
-        .lte('date', lastDay.toISOString().split('T')[0])
+        .gte('date', getFirstDayOfMonth())
+        .lte('date', getLastDayOfMonth())
 
       // Get payables/receivables
       const { data: payables } = await supabase
@@ -74,8 +71,16 @@ export default function DashboardPage() {
       // Calculate stats
       const income = transactions?.filter((t: Transaction) => t.type === 'income').reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0) || 0
       const expenses = transactions?.filter((t: Transaction) => t.type === 'expense').reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0) || 0
-      const openPayables = payables?.filter((p: { type: string; amount: number }) => p.type === 'payable').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
-      const openReceivables = payables?.filter((p: { type: string; amount: number }) => p.type === 'receivable').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      
+      // Calculate payables from both payables_receivables table and liability transactions
+      const payablesFromTable = payables?.filter((p: { type: string; amount: number }) => p.type === 'payable').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      const payablesFromTransactions = transactions?.filter((t: Transaction) => t.type === 'liability').reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0) || 0
+      const openPayables = payablesFromTable + payablesFromTransactions
+      
+      // Calculate receivables from both payables_receivables table and asset transactions (Accounts Receivable)
+      const receivablesFromTable = payables?.filter((p: { type: string; amount: number }) => p.type === 'receivable').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
+      const receivablesFromTransactions = transactions?.filter((t: Transaction) => t.type === 'asset' && t.category === 'Accounts Receivable').reduce((sum: number, t: Transaction) => sum + Number(t.amount), 0) || 0
+      const openReceivables = receivablesFromTable + receivablesFromTransactions
 
       // Get recent transactions
       const { data: recentTransactions } = await supabase
@@ -124,7 +129,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
@@ -153,19 +158,6 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Income</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${stats.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(stats.netIncome)}
-            </div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Open Payables</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -174,6 +166,32 @@ export default function DashboardPage() {
               {formatCurrency(stats.openPayables)}
             </div>
             <p className="text-xs text-muted-foreground">Amount due</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Open Receivables</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {formatCurrency(stats.openReceivables)}
+            </div>
+            <p className="text-xs text-muted-foreground">Amount owed to you</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Income</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${stats.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(stats.netIncome)}
+            </div>
+            <p className="text-xs text-muted-foreground">This month</p>
           </CardContent>
         </Card>
       </div>
@@ -195,7 +213,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium">{transaction.description}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(transaction.date).toLocaleDateString()} • {transaction.category}
+                                              {formatDate(transaction.date)} • {transaction.category}
                     </p>
                   </div>
                   <div className={`font-medium ${

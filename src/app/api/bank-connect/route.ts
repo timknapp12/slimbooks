@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentDate, getCurrentDateTime } from '@/lib/date-utils'
 
 // This is a placeholder for bank API integration
 // In a real implementation, you would integrate with services like:
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         account_type: accountType,
         connection_id: mockConnection.id,
         status: 'connected',
-        last_sync: new Date().toISOString()
+        last_sync: getCurrentDateTime()
       })
 
     if (connectionError) {
@@ -65,21 +66,21 @@ export async function POST(request: NextRequest) {
     const mockTransactions = [
       {
         id: `txn_${Date.now()}_1`,
-        date: new Date().toISOString().split('T')[0],
+        date: getCurrentDate(),
         amount: -45.67,
         description: 'STARBUCKS COFFEE #1234',
         category: 'Meals & Entertainment'
       },
       {
         id: `txn_${Date.now()}_2`,
-        date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+        date: getCurrentDate(),
         amount: -120.00,
         description: 'OFFICE DEPOT SUPPLIES',
         category: 'Office Supplies'
       },
       {
         id: `txn_${Date.now()}_3`,
-        date: new Date(Date.now() - 172800000).toISOString().split('T')[0],
+        date: getCurrentDate(),
         amount: 2500.00,
         description: 'CLIENT PAYMENT - INVOICE #123',
         category: 'Service Revenue'

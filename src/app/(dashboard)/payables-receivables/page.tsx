@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, CheckCircle } from 'lucide-react'
+import { formatDate, isOverdue } from '@/lib/date-utils'
 
 interface PayableReceivable {
   id: string
@@ -161,13 +162,7 @@ export default function PayablesReceivablesPage() {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString()
-  }
 
-  const isOverdue = (dueDate: string, status: string) => {
-    return status === 'open' && new Date(dueDate) < new Date()
-  }
 
   const payables = items.filter(item => item.type === 'payable')
   const receivables = items.filter(item => item.type === 'receivable')

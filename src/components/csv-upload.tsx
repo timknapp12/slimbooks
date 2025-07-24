@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Upload } from 'lucide-react'
 import Papa from 'papaparse'
 import { autoCategorizeTranaction } from '@/lib/categorization'
+import { formatDateForDB } from '@/lib/date-utils'
 
 interface CSVUploadProps {
   isOpen: boolean
@@ -145,7 +146,7 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                 return {
                   company_id: userData.company_id,
                   user_id: user.id,
-                  date: new Date(row[dateCol] as string).toISOString().split('T')[0],
+                  date: formatDateForDB(new Date(row[dateCol] as string)),
                   amount: Math.abs(amount),
                   type,
                   category: autoCategorizeTranaction(description, type),

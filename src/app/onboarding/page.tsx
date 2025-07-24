@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 
@@ -16,7 +16,8 @@ export default function OnboardingPage() {
   const [companyName, setCompanyName] = useState('')
   const [ein, setEin] = useState('')
   const [address, setAddress] = useState('')
-  const [accountingMethod, setAccountingMethod] = useState<'cash' | 'accrual'>('cash')
+  // Default to cash basis accounting
+  const accountingMethod = 'cash'
   const [loading, setLoading] = useState(false)
   const [emailVerified, setEmailVerified] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -163,18 +164,7 @@ export default function OnboardingPage() {
                 placeholder="123 Main St, City, State, ZIP"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="accountingMethod">Accounting Method *</Label>
-              <Select value={accountingMethod} onValueChange={(value: 'cash' | 'accrual') => setAccountingMethod(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash Basis</SelectItem>
-                  <SelectItem value="accrual">Accrual Basis</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating...' : 'Complete Setup'}
             </Button>

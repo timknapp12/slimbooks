@@ -29,7 +29,7 @@ CREATE TABLE transactions (
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     date DATE NOT NULL,
     amount DECIMAL(12,2) NOT NULL,
-    type TEXT CHECK (type IN ('expense', 'income', 'transfer')) NOT NULL,
+    type TEXT CHECK (type IN ('income', 'expense', 'asset', 'liability', 'equity')) NOT NULL,
     category TEXT,
     description TEXT,
     source TEXT CHECK (source IN ('manual', 'import')) DEFAULT 'manual',
@@ -38,6 +38,9 @@ CREATE TABLE transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add comment to document transaction types
+COMMENT ON COLUMN transactions.type IS 'Transaction type: income (revenue), expense (costs), asset (things owned), liability (things owed), equity (owner''s claim including transfers)';
 
 -- Create payables_receivables table
 CREATE TABLE payables_receivables (
@@ -75,6 +78,19 @@ CREATE TABLE subscriptions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create pricing_plans table for subscription plans
+CREATE TABLE pricing_plans (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    stripe_price_id TEXT,
+    is_active BOOLEAN DEFAULT true,
+    features JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable Row Level Security
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -82,6 +98,7 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payables_receivables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bank_statements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_plans ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for companies
 CREATE POLICY "Users can view their own company" ON companies
@@ -168,6 +185,10 @@ CREATE POLICY "Users can view their company subscription" ON subscriptions
         SELECT company_id FROM users WHERE id = auth.uid()
     ));
 
+-- RLS Policies for pricing_plans (public read access for active plans)
+CREATE POLICY "Anyone can view active pricing plans" ON pricing_plans
+    FOR SELECT USING (is_active = true);
+
 -- Create indexes for better performance
 CREATE INDEX idx_transactions_company_id ON transactions(company_id);
 CREATE INDEX idx_transactions_date ON transactions(date);
@@ -201,6 +222,9 @@ CREATE TRIGGER update_payables_receivables_updated_at BEFORE UPDATE ON payables_
 CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_pricing_plans_updated_at BEFORE UPDATE ON pricing_plans
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Function to automatically create user profile when auth user is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -232,3 +256,19 @@ CREATE POLICY "Only authenticated users can view their bank statements" ON stora
     bucket_id = 'bank-statements' AND 
     auth.uid() IS NOT NULL
   );
+
+-- Insert default pricing plan
+INSERT INTO pricing_plans (name, description, price, stripe_price_id, is_active, features)
+VALUES (
+    'Basic Plan',
+    'Perfect for small businesses getting started with accounting',
+    29.00,
+    NULL,
+    true,
+    '["Unlimited transactions", "Financial reports (P&L, Balance Sheet, Cash Flow)", "Bank statement import", "Payables & receivables tracking", "Multiple users", "Email support"]'::jsonb
+);
+
+-- Grant necessary permissions
+GRANT ALL ON subscriptions TO authenticated;
+GRANT ALL ON pricing_plans TO authenticated;
+GRANT USAGE ON SCHEMA public TO authenticated;
