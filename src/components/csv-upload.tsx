@@ -111,17 +111,41 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
         header: true,
         complete: async (results) => {
           try {
-            const transactions = (results.data as Record<string, unknown>[])
-              .filter((row) => row.Date && row.Amount && row.Description)
+            const data = results.data as Record<string, unknown>[]
+            
+            // Check if we have the required columns
+            if (data.length === 0) {
+              throw new Error('CSV file is empty')
+            }
+            
+            const firstRow = data[0]
+            const columns = Object.keys(firstRow)
+            const hasDate = columns.some(col => col.toLowerCase().includes('date'))
+            const hasAmount = columns.some(col => col.toLowerCase().includes('amount') || col.toLowerCase().includes('debit') || col.toLowerCase().includes('credit'))
+            const hasDescription = columns.some(col => col.toLowerCase().includes('description') || col.toLowerCase().includes('memo') || col.toLowerCase().includes('detail'))
+            
+            if (!hasDate || !hasAmount || !hasDescription) {
+              throw new Error(`CSV must contain Date, Amount, and Description columns. Found columns: ${columns.join(', ')}`)
+            }
+            
+            // Find the actual column names (case-insensitive)
+            const dateCol = columns.find(col => col.toLowerCase().includes('date')) || 'Date'
+            const amountCol = columns.find(col => col.toLowerCase().includes('amount') || col.toLowerCase().includes('debit') || col.toLowerCase().includes('credit')) || 'Amount'
+            const descCol = columns.find(col => col.toLowerCase().includes('description') || col.toLowerCase().includes('memo') || col.toLowerCase().includes('detail')) || 'Description'
+            
+            const transactions = data
+              .filter((row) => row[dateCol] && row[amountCol] && row[descCol])
               .map((row) => {
-                const amount = parseFloat(row.Amount as string)
+                const amount = parseFloat(row[amountCol] as string)
+                if (isNaN(amount)) return null
+                
                 const type = amount > 0 ? 'income' : 'expense'
-                const description = (row.Description as string) || 'Bank import'
+                const description = (row[descCol] as string) || 'Bank import'
                 
                 return {
                   company_id: userData.company_id,
                   user_id: user.id,
-                  date: new Date(row.Date as string).toISOString().split('T')[0],
+                  date: new Date(row[dateCol] as string).toISOString().split('T')[0],
                   amount: Math.abs(amount),
                   type,
                   category: autoCategorizeTranaction(description, type),
@@ -129,14 +153,17 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                   source: 'import'
                 }
               })
+              .filter(Boolean)
 
-            if (transactions.length > 0) {
-              const { error: transactionError } = await supabase
-                .from('transactions')
-                .insert(transactions)
-
-              if (transactionError) throw transactionError
+            if (transactions.length === 0) {
+              throw new Error('No valid transactions found. Please check your CSV format and data.')
             }
+
+            const { error: transactionError } = await supabase
+              .from('transactions')
+              .insert(transactions)
+
+            if (transactionError) throw transactionError
 
             // Save bank statement record
             const { error: statementError } = await supabase

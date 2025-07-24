@@ -215,3 +215,20 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Create storage bucket for bank statements
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('bank-statements', 'bank-statements', false);
+
+-- Storage policies for bank-statements bucket
+CREATE POLICY "Only authenticated users can upload bank statements" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'bank-statements' AND 
+    auth.uid() IS NOT NULL
+  );
+
+CREATE POLICY "Only authenticated users can view their bank statements" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'bank-statements' AND 
+    auth.uid() IS NOT NULL
+  );
