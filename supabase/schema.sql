@@ -17,9 +17,20 @@ CREATE TABLE users (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     email TEXT NOT NULL,
     role TEXT CHECK (role IN ('admin', 'staff')) DEFAULT 'admin',
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create user_companies junction table for multi-company support
+CREATE TABLE user_companies (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE NOT NULL,
+    role TEXT CHECK (role IN ('admin', 'staff')) DEFAULT 'admin',
+    is_default BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, company_id)
 );
 
 -- Create transactions table
@@ -94,30 +105,51 @@ CREATE TABLE pricing_plans (
 -- Enable Row Level Security
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payables_receivables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bank_statements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pricing_plans ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for companies
-CREATE POLICY "Users can view their own company" ON companies
+-- RLS Policies for companies (multi-company support)
+CREATE POLICY "Users can view companies they belong to" ON companies
     FOR SELECT USING (id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
 CREATE POLICY "Users can insert companies" ON companies
     FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Users can update their own company" ON companies
+CREATE POLICY "Users can update companies they belong to" ON companies
     FOR UPDATE USING (id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
+
+CREATE POLICY "Users can delete companies they belong to" ON companies
+    FOR DELETE USING (id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+-- RLS Policies for user_companies
+CREATE POLICY "Users can view their company memberships" ON user_companies
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can insert their own company memberships" ON user_companies
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own company memberships" ON user_companies
+    FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own company memberships" ON user_companies
+    FOR DELETE USING (user_id = auth.uid());
 
 -- RLS Policies for users
 CREATE POLICY "Users can view users in their company" ON users
-    FOR SELECT USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+    FOR SELECT USING (id IN (
+        SELECT user_id FROM user_companies WHERE company_id IN (
+            SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+        )
     ));
 
 CREATE POLICY "Users can insert their own profile" ON users
@@ -126,63 +158,63 @@ CREATE POLICY "Users can insert their own profile" ON users
 CREATE POLICY "Users can update their own profile" ON users
     FOR UPDATE USING (id = auth.uid());
 
--- RLS Policies for transactions
-CREATE POLICY "Users can view transactions in their company" ON transactions
+-- RLS Policies for transactions (multi-company support)
+CREATE POLICY "Users can view transactions in their companies" ON transactions
     FOR SELECT USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Users can insert transactions in their company" ON transactions
+CREATE POLICY "Users can insert transactions in their companies" ON transactions
     FOR INSERT WITH CHECK (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Users can update transactions in their company" ON transactions
+CREATE POLICY "Users can update transactions in their companies" ON transactions
     FOR UPDATE USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Users can delete transactions in their company" ON transactions
+CREATE POLICY "Users can delete transactions in their companies" ON transactions
     FOR DELETE USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
--- RLS Policies for payables_receivables
-CREATE POLICY "Users can view payables/receivables in their company" ON payables_receivables
+-- RLS Policies for payables_receivables (multi-company support)
+CREATE POLICY "Users can view payables/receivables in their companies" ON payables_receivables
     FOR SELECT USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Users can insert payables/receivables in their company" ON payables_receivables
+CREATE POLICY "Users can insert payables/receivables in their companies" ON payables_receivables
     FOR INSERT WITH CHECK (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Users can update payables/receivables in their company" ON payables_receivables
+CREATE POLICY "Users can update payables/receivables in their companies" ON payables_receivables
     FOR UPDATE USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Users can delete payables/receivables in their company" ON payables_receivables
+CREATE POLICY "Users can delete payables/receivables in their companies" ON payables_receivables
     FOR DELETE USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
 -- RLS Policies for bank_statements (Admin only)
 CREATE POLICY "Only admins can view bank statements" ON bank_statements
     FOR SELECT USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid() AND role = 'admin'
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid() AND role = 'admin'
     ));
 
 CREATE POLICY "Only admins can insert bank statements" ON bank_statements
     FOR INSERT WITH CHECK (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid() AND role = 'admin'
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid() AND role = 'admin'
     ));
 
--- RLS Policies for subscriptions
-CREATE POLICY "Users can view their company subscription" ON subscriptions
+-- RLS Policies for subscriptions (multi-company support)
+CREATE POLICY "Users can view their companies subscriptions" ON subscriptions
     FOR SELECT USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
 -- RLS Policies for pricing_plans (public read access for active plans)
@@ -195,7 +227,9 @@ CREATE INDEX idx_transactions_date ON transactions(date);
 CREATE INDEX idx_transactions_type ON transactions(type);
 CREATE INDEX idx_payables_receivables_company_id ON payables_receivables(company_id);
 CREATE INDEX idx_payables_receivables_status ON payables_receivables(status);
-CREATE INDEX idx_users_company_id ON users(company_id);
+CREATE INDEX idx_user_companies_user_id ON user_companies(user_id);
+CREATE INDEX idx_user_companies_company_id ON user_companies(company_id);
+CREATE INDEX idx_user_companies_default ON user_companies(user_id, is_default) WHERE is_default = true;
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -224,6 +258,93 @@ CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
 
 CREATE TRIGGER update_pricing_plans_updated_at BEFORE UPDATE ON pricing_plans
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_user_companies_updated_at 
+    BEFORE UPDATE ON user_companies
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to ensure only one default company per user
+CREATE OR REPLACE FUNCTION ensure_single_default_company()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- If this is being set as default, unset all other defaults for this user
+    IF NEW.is_default = true THEN
+        UPDATE user_companies 
+        SET is_default = false 
+        WHERE user_id = NEW.user_id AND id != NEW.id;
+    END IF;
+    
+    -- If this user has no default company, make this one default
+    IF NOT EXISTS (
+        SELECT 1 FROM user_companies 
+        WHERE user_id = NEW.user_id AND is_default = true
+    ) THEN
+        NEW.is_default = true;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to ensure single default company
+CREATE TRIGGER ensure_single_default_company_trigger
+    BEFORE INSERT OR UPDATE ON user_companies
+    FOR EACH ROW EXECUTE FUNCTION ensure_single_default_company();
+
+-- Function to get user's default company
+CREATE OR REPLACE FUNCTION get_user_default_company(user_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+    default_company_id UUID;
+BEGIN
+    SELECT company_id INTO default_company_id
+    FROM user_companies
+    WHERE user_id = user_uuid AND is_default = true
+    LIMIT 1;
+    
+    RETURN default_company_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create company with user (for multi-company support)
+CREATE OR REPLACE FUNCTION create_company_with_user(
+    company_name TEXT,
+    company_address TEXT DEFAULT NULL,
+    company_ein TEXT DEFAULT NULL,
+    company_accounting_method TEXT DEFAULT 'cash'
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    new_company_id UUID;
+    current_user_id UUID;
+BEGIN
+    -- Get the current user ID
+    current_user_id := auth.uid();
+    
+    -- Check if user is authenticated
+    IF current_user_id IS NULL THEN
+        RAISE EXCEPTION 'User must be authenticated to create a company';
+    END IF;
+    
+    -- Create the company
+    INSERT INTO companies (name, address, ein, accounting_method)
+    VALUES (company_name, company_address, company_ein, company_accounting_method)
+    RETURNING id INTO new_company_id;
+    
+    -- Create the user-company relationship
+    INSERT INTO user_companies (user_id, company_id, role, is_default)
+    VALUES (current_user_id, new_company_id, 'admin', false);
+    
+    -- Return the new company ID
+    RETURN new_company_id;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION create_company_with_user(TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 -- Function to automatically create user profile when auth user is created
 CREATE OR REPLACE FUNCTION public.handle_new_user()

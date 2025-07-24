@@ -23,6 +23,7 @@ import {
   getLastDayOfSpecificMonth,
   getYearOptions
 } from '@/lib/date-utils'
+import { useCompany } from '@/contexts/CompanyContext'
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState<ReportData>({
@@ -79,25 +80,17 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState(getFirstDayOfYear(getCurrentYear()))
   const [dateTo, setDateTo] = useState(getLastDayOfYear(getCurrentYear()))
   const supabase = createClient()
+  const { currentCompany } = useCompany()
 
   const fetchReportData = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.company_id) return
+      if (!currentCompany) return
 
       // Get transactions for the date range
       const { data: transactions } = await supabase
         .from('transactions')
         .select('*')
-        .eq('company_id', userData.company_id)
+        .eq('company_id', currentCompany.id)
         .gte('date', dateFrom)
         .lte('date', dateTo)
 
@@ -105,7 +98,7 @@ export default function ReportsPage() {
       const { data: payables } = await supabase
         .from('payables_receivables')
         .select('*')
-        .eq('company_id', userData.company_id)
+        .eq('company_id', currentCompany.id)
 
       if (!transactions) return
 
@@ -391,11 +384,13 @@ export default function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [dateFrom, dateTo, supabase])
+  }, [dateFrom, dateTo, currentCompany, supabase])
 
   useEffect(() => {
-    fetchReportData()
-  }, [fetchReportData])
+    if (currentCompany) {
+      fetchReportData()
+    }
+  }, [fetchReportData, currentCompany])
   useEffect(() => {
     updateDatesForYear(selectedYear)
   }, []) // Only run once on mount

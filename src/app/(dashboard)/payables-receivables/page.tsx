@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, CheckCircle } from 'lucide-react'
 import { formatDate, isOverdue } from '@/lib/date-utils'
+import { useCompany } from '@/contexts/CompanyContext'
 
 interface PayableReceivable {
   id: string
@@ -32,6 +33,7 @@ export default function PayablesReceivablesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
+  const { currentCompany } = useCompany()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -43,21 +45,12 @@ export default function PayablesReceivablesPage() {
 
   const fetchItems = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.company_id) return
+      if (!currentCompany) return
 
       const { data, error } = await supabase
         .from('payables_receivables')
         .select('*')
-        .eq('company_id', userData.company_id)
+        .eq('company_id', currentCompany.id)
         .order('due_date', { ascending: true })
 
       if (error) throw error
@@ -73,31 +66,24 @@ export default function PayablesReceivablesPage() {
     } finally {
       setLoading(false)
     }
-  }, [supabase, toast])
+  }, [currentCompany, supabase, toast])
 
   useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+    if (currentCompany) {
+      fetchItems()
+    }
+  }, [fetchItems, currentCompany])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.company_id) return
+      if (!currentCompany) return
 
       const { error } = await supabase
         .from('payables_receivables')
         .insert({
-          company_id: userData.company_id,
+          company_id: currentCompany.id,
           type: formData.type,
           name: formData.name,
           amount: parseFloat(formData.amount),

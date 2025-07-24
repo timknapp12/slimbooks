@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -11,15 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Building2, Users, CreditCard } from 'lucide-react'
+import { Building2, Users, CreditCard, Plus, Edit2, Check, X } from 'lucide-react'
+import { useCompany } from '@/contexts/CompanyContext'
 
-interface Company {
-  id: string
-  name: string
-  address: string
-  ein: string
-  accounting_method: 'cash' | 'accrual'
-}
+
 
 interface User {
   id: string
@@ -28,18 +24,26 @@ interface User {
 }
 
 export default function SettingsPage() {
-  const [company, setCompany] = useState<Company | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [managingSubscription, setManagingSubscription] = useState(false)
   const [hasSubscription, setHasSubscription] = useState(false)
   const [priceId, setPriceId] = useState<string | null>(null)
+  const [showAddCompany, setShowAddCompany] = useState(false)
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
+  const [editingCompanyForm, setEditingCompanyForm] = useState({
+    name: '',
+    address: '',
+    ein: '',
+    accounting_method: 'cash' as 'cash' | 'accrual'
+  })
   const { toast } = useToast()
   const supabase = createClient()
+  const { currentCompany, userCompanies, refreshCompanies } = useCompany()
+  const searchParams = useSearchParams()
 
-  // Form state for company
-  const [companyForm, setCompanyForm] = useState({
+  // Form state for new company
+  const [newCompanyForm, setNewCompanyForm] = useState({
     name: '',
     address: '',
     ein: '',
@@ -48,45 +52,25 @@ export default function SettingsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        window.location.href = '/login'
-        return
-      }
-
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('company_id, companies(*)')
-        .eq('id', user.id)
-        .single()
-
-      if (userError || !userData) {
-        console.error('User not found in users table:', userError)
-        window.location.href = '/onboarding'
-        return
-      }
-
-      if (!userData?.company_id) {
-        window.location.href = '/onboarding'
-        return
-      }
-
-      const companyData = userData.companies as unknown as Company
-      setCompany(companyData)
-      setCompanyForm({
-        name: companyData.name || '',
-        address: companyData.address || '',
-        ein: companyData.ein || '',
-        accounting_method: companyData.accounting_method || 'cash'
-      })
+      if (!currentCompany) return
 
       // Fetch all users in the company
       const { data: usersData } = await supabase
-        .from('users')
-        .select('id, email, role')
-        .eq('company_id', userData.company_id)
+        .from('user_companies')
+        .select(`
+          user_id,
+          role,
+          users!inner(id, email)
+        `)
+        .eq('company_id', currentCompany.id)
 
-      setUsers(usersData || [])
+      const formattedUsers = usersData?.map((uc: { users: { id: string; email: string }; role: string }) => ({
+        id: uc.users.id,
+        email: uc.users.email,
+        role: uc.role
+      })) || []
+
+      setUsers(formattedUsers)
 
       // Check subscription status (handle gracefully if table doesn't exist)
       try {
@@ -94,7 +78,7 @@ export default function SettingsPage() {
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('subscriptions')
           .select('stripe_customer_id, status')
-          .eq('company_id', userData.company_id)
+          .eq('company_id', currentCompany.id)
           .maybeSingle() // Use maybeSingle instead of single to avoid errors if no data
 
         if (subscriptionError) {
@@ -139,45 +123,27 @@ export default function SettingsPage() {
   }, [supabase, toast])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  const handleUpdateCompany = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-
-    try {
-      if (!company) return
-
-      const { error } = await supabase
-        .from('companies')
-        .update({
-          name: companyForm.name,
-          address: companyForm.address,
-          ein: companyForm.ein,
-          accounting_method: companyForm.accounting_method
-        })
-        .eq('id', company.id)
-
-      if (error) throw error
-
-      toast({
-        title: 'Success',
-        description: 'Company information updated successfully',
-      })
-
+    if (currentCompany) {
       fetchData()
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update company information'
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      })
-    } finally {
-      setSaving(false)
     }
-  }
+  }, [fetchData, currentCompany])
+
+  // Check URL parameters for tab and add company form
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const addCompany = searchParams.get('addCompany')
+    
+    if (tab === 'companies') {
+      // Set the companies tab as active (this will be handled by the Tabs component)
+      // The tab will be set via the defaultValue prop
+    }
+    
+    if (addCompany === 'true') {
+      setShowAddCompany(true)
+    }
+  }, [searchParams])
+
+
 
   const handleManageSubscription = async () => {
     setManagingSubscription(true)
@@ -275,6 +241,64 @@ export default function SettingsPage() {
     }
   }
 
+  const handleStartEditCompany = (userCompany: { company_id: string; company: { name: string; address: string; ein: string; accounting_method: 'cash' | 'accrual' } }) => {
+    setEditingCompanyId(userCompany.company_id)
+    setEditingCompanyForm({
+      name: userCompany.company.name || '',
+      address: userCompany.company.address || '',
+      ein: userCompany.company.ein || '',
+      accounting_method: userCompany.company.accounting_method || 'cash'
+    })
+  }
+
+  const handleCancelEditCompany = () => {
+    setEditingCompanyId(null)
+    setEditingCompanyForm({
+      name: '',
+      address: '',
+      ein: '',
+      accounting_method: 'cash'
+    })
+  }
+
+  const handleSaveEditCompany = async () => {
+    if (!editingCompanyId) return
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          name: editingCompanyForm.name,
+          address: editingCompanyForm.address,
+          ein: editingCompanyForm.ein,
+          accounting_method: editingCompanyForm.accounting_method
+        })
+        .eq('id', editingCompanyId)
+
+      if (error) throw error
+
+      toast({
+        title: 'Success',
+        description: 'Company updated successfully',
+      })
+
+      setEditingCompanyId(null)
+      setEditingCompanyForm({
+        name: '',
+        address: '',
+        ein: '',
+        accounting_method: 'cash'
+      })
+      await refreshCompanies()
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to update company',
+        variant: 'destructive',
+      })
+    }
+  }
+
   if (loading) {
     return <div>Loading...</div>
   }
@@ -288,74 +312,221 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="company" className="space-y-4">
+      <Tabs defaultValue={searchParams.get('tab') || "companies"} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="company">Company</TabsTrigger>
+          <TabsTrigger value="companies">Companies</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="company">
+
+
+        <TabsContent value="companies">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Company Information
+                Company Management
               </CardTitle>
               <CardDescription>
-                Update your company details and accounting preferences
+                Manage your companies and switch between them
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleUpdateCompany} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name *</Label>
-                    <Input
-                      id="companyName"
-                      value={companyForm.name}
-                      onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
-                      required
-                    />
+              <div className="space-y-4">
+                {userCompanies.map((userCompany) => (
+                  <div key={userCompany.company_id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {editingCompanyId === userCompany.company_id ? (
+                      // Edit mode
+                      <div className="flex-1 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`edit-company-name-${userCompany.company_id}`}>Company Name *</Label>
+                            <Input
+                              id={`edit-company-name-${userCompany.company_id}`}
+                              value={editingCompanyForm.name}
+                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, name: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`edit-company-ein-${userCompany.company_id}`}>EIN</Label>
+                            <Input
+                              id={`edit-company-ein-${userCompany.company_id}`}
+                              value={editingCompanyForm.ein}
+                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, ein: e.target.value })}
+                              placeholder="XX-XXXXXXX"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor={`edit-company-address-${userCompany.company_id}`}>Business Address</Label>
+                          <Input
+                            id={`edit-company-address-${userCompany.company_id}`}
+                            value={editingCompanyForm.address}
+                            onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, address: e.target.value })}
+                            placeholder="123 Main St, City, State, ZIP"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`edit-company-accounting-${userCompany.company_id}`}>Accounting Method</Label>
+                          <Select
+                            value={editingCompanyForm.accounting_method}
+                            onValueChange={(value: 'cash' | 'accrual') => 
+                              setEditingCompanyForm({ ...editingCompanyForm, accounting_method: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Cash Basis</SelectItem>
+                              <SelectItem value="accrual">Accrual Basis</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveEditCompany} size="sm">
+                            <Check className="mr-2 h-4 w-4" />
+                            Save
+                          </Button>
+                          <Button onClick={handleCancelEditCompany} variant="outline" size="sm">
+                            <X className="mr-2 h-4 w-4" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      // View mode
+                      <>
+                        <div>
+                          <p className="font-medium">{userCompany.company.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Role: {userCompany.role === 'admin' ? 'Administrator' : 'Staff'}
+                            {userCompany.is_default && ' • Default'}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleStartEditCompany(userCompany)}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            userCompany.role === 'admin' 
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-secondary text-secondary-foreground'
+                          }`}>
+                            {userCompany.role === 'admin' ? 'Admin' : 'Staff'}
+                          </span>
+                          {userCompany.is_default && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ein">EIN</Label>
-                    <Input
-                      id="ein"
-                      value={companyForm.ein}
-                      onChange={(e) => setCompanyForm({ ...companyForm, ein: e.target.value })}
-                      placeholder="XX-XXXXXXX"
-                    />
+                ))}
+                
+                {!showAddCompany && (
+                  <div className="pt-4 border-t">
+                    <Button 
+                      onClick={() => setShowAddCompany(true)}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add New Company
+                    </Button>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Business Address</Label>
-                  <Input
-                    id="address"
-                    value={companyForm.address}
-                    onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })}
-                    placeholder="123 Main St, City, State, ZIP"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accountingMethod">Accounting Method *</Label>
-                  <Select 
-                    value={companyForm.accounting_method} 
-                    onValueChange={(value: 'cash' | 'accrual') => setCompanyForm({ ...companyForm, accounting_method: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash Basis</SelectItem>
-                      <SelectItem value="accrual">Accrual Basis</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </form>
+                )}
+
+                {showAddCompany && (
+                  <div className="mt-4 p-4 border rounded-lg bg-muted/50">
+                    <h4 className="font-medium mb-4">Add New Company</h4>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault()
+                      try {
+                        const { data: { user } } = await supabase.auth.getUser()
+                        if (!user) return
+
+                        // Create new company using database function
+                        const { error: functionError } = await supabase
+                          .rpc('create_company_with_user', {
+                            company_name: newCompanyForm.name,
+                            company_address: newCompanyForm.address || null,
+                            company_ein: newCompanyForm.ein || null,
+                            company_accounting_method: newCompanyForm.accounting_method
+                          })
+
+                        if (functionError) throw functionError
+
+                        toast({
+                          title: 'Success',
+                          description: 'Company created successfully',
+                        })
+
+                        setShowAddCompany(false)
+                        setNewCompanyForm({ name: '', address: '', ein: '', accounting_method: 'cash' })
+                        await refreshCompanies()
+                                             } catch {
+                         toast({
+                           title: 'Error',
+                           description: 'Failed to create company',
+                           variant: 'destructive',
+                         })
+                       }
+                    }}>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="newCompanyName">Company Name *</Label>
+                          <Input
+                            id="newCompanyName"
+                            value={newCompanyForm.name}
+                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, name: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="newCompanyAddress">Business Address</Label>
+                          <Input
+                            id="newCompanyAddress"
+                            value={newCompanyForm.address}
+                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, address: e.target.value })}
+                            placeholder="123 Main St, City, State, ZIP"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="newCompanyEin">EIN</Label>
+                          <Input
+                            id="newCompanyEin"
+                            value={newCompanyForm.ein}
+                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, ein: e.target.value })}
+                            placeholder="XX-XXXXXXX"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button type="submit" size="sm">
+                            Create Company
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setShowAddCompany(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -414,7 +585,7 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {!company ? (
+              {!currentCompany ? (
                 <div className="text-center py-8">
                   <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>

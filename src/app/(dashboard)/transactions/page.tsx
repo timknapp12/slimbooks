@@ -17,6 +17,7 @@ import { CSVUpload } from '@/components/csv-upload'
 import { BankConnect } from '@/components/bank-connect'
 import { expenseCategories, incomeCategories, assetCategories, liabilityCategories, equityCategories, allCategories, autoCategorizeTranaction } from '@/lib/categorization'
 import { formatDate, formatDateForDB, getFirstDayOfMonth, getLastDayOfMonth, getFirstDayOfYear, getLastDayOfYear, getCurrentYear } from '@/lib/date-utils'
+import { useCompany } from '@/contexts/CompanyContext'
 
 interface Transaction {
   id: string
@@ -44,6 +45,7 @@ export default function TransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<Partial<Transaction>>({})
   const { toast } = useToast()
   const supabase = createClient()
+  const { currentCompany } = useCompany()
 
   // Form state for new transaction
   const [formData, setFormData] = useState({
@@ -92,21 +94,12 @@ export default function TransactionsPage() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.company_id) return
+      if (!currentCompany) return
 
       let query = supabase
         .from('transactions')
         .select('*')
-        .eq('company_id', userData.company_id)
+        .eq('company_id', currentCompany.id)
         .order('date', { ascending: false })
 
       if (filterType !== 'all') {
@@ -140,31 +133,27 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [filterType, filterCategory, dateFrom, dateTo, supabase, toast])
+  }, [filterType, filterCategory, dateFrom, dateTo, currentCompany, supabase, toast])
 
   useEffect(() => {
-    fetchTransactions()
-  }, [fetchTransactions])
+    if (currentCompany) {
+      fetchTransactions()
+    }
+  }, [fetchTransactions, currentCompany])
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
+      if (!currentCompany) return
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', user.id)
-        .single()
-
-      if (!userData?.company_id) return
 
       const { error } = await supabase
         .from('transactions')
         .insert({
-          company_id: userData.company_id,
+          company_id: currentCompany.id,
           user_id: user.id,
           date: formData.date,
           amount: parseFloat(formData.amount),

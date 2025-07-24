@@ -1,252 +1,306 @@
--- Complete Migration for SlimBooks Database
--- This migration combines all previous migrations into one comprehensive file
--- Run this in your Supabase SQL Editor to set up the complete database
+-- Complete Migration for Multi-Company Support
+-- This migration consolidates all changes needed for multi-company functionality
 
 -- ============================================================================
--- MIGRATION 1: Update transaction types to support all 5 fundamental account types
+-- STEP 1: Create user_companies junction table
 -- ============================================================================
 
--- First, drop the existing constraint
-ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_type_check;
-
--- Add the new constraint with all 5 fundamental account types
-ALTER TABLE transactions ADD CONSTRAINT transactions_type_check 
-    CHECK (type IN ('income', 'expense', 'asset', 'liability', 'equity'));
-
--- Update any existing 'transfer' transactions to 'equity' type
-UPDATE transactions 
-SET type = 'equity' 
-WHERE type = 'transfer';
-
--- Add a comment to document the change
-COMMENT ON COLUMN transactions.type IS 'Transaction type: income (revenue), expense (costs), asset (things owned), liability (things owed), equity (owner''s claim including transfers)';
-
--- ============================================================================
--- MIGRATION 2: Create missing tables if they don't exist
--- ============================================================================
-
--- Create subscriptions table if it doesn't exist
-CREATE TABLE IF NOT EXISTS subscriptions (
+CREATE TABLE user_companies (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    company_id UUID NOT NULL,
-    stripe_customer_id TEXT,
-    stripe_subscription_id TEXT,
-    status TEXT,
-    current_period_start TIMESTAMP WITH TIME ZONE,
-    current_period_end TIMESTAMP WITH TIME ZONE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE NOT NULL,
+    role TEXT CHECK (role IN ('admin', 'staff')) DEFAULT 'admin',
+    is_default BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create pricing_plans table if it doesn't exist
-CREATE TABLE IF NOT EXISTS pricing_plans (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    price DECIMAL(10,2) NOT NULL,
-    stripe_price_id TEXT,
-    is_active BOOLEAN DEFAULT true,
-    features JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, company_id)
 );
 
 -- ============================================================================
--- MIGRATION 3: Add foreign key constraints if they don't exist
+-- STEP 2: Remove company_id from users table (if it exists)
 -- ============================================================================
 
--- Add foreign key constraint for subscriptions if it doesn't exist
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.table_constraints 
-        WHERE constraint_name = 'subscriptions_company_id_fkey'
-    ) THEN
-        ALTER TABLE subscriptions 
-        ADD CONSTRAINT subscriptions_company_id_fkey 
-        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
-    END IF;
-END $$;
-
--- ============================================================================
--- MIGRATION 4: Add missing columns to existing tables
--- ============================================================================
-
--- Add missing columns to pricing_plans table
-DO $$ 
-BEGIN
-    -- Add description column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'pricing_plans' 
-        AND column_name = 'description'
-    ) THEN
-        ALTER TABLE pricing_plans ADD COLUMN description TEXT;
-    END IF;
-
-    -- Add features column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'pricing_plans' 
-        AND column_name = 'features'
-    ) THEN
-        ALTER TABLE pricing_plans ADD COLUMN features JSONB;
-    END IF;
-
-    -- Add updated_at column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'pricing_plans' 
-        AND column_name = 'updated_at'
-    ) THEN
-        ALTER TABLE pricing_plans ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-    END IF;
-END $$;
-
--- Add missing columns to subscriptions table
-DO $$ 
-BEGIN
-    -- Add current_period_start column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'subscriptions' 
-        AND column_name = 'current_period_start'
-    ) THEN
-        ALTER TABLE subscriptions ADD COLUMN current_period_start TIMESTAMP WITH TIME ZONE;
-    END IF;
-
-    -- Add current_period_end column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'subscriptions' 
-        AND column_name = 'current_period_end'
-    ) THEN
-        ALTER TABLE subscriptions ADD COLUMN current_period_end TIMESTAMP WITH TIME ZONE;
-    END IF;
-
-    -- Add updated_at column if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'subscriptions' 
-        AND column_name = 'updated_at'
-    ) THEN
-        ALTER TABLE subscriptions ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
-    END IF;
-END $$;
-
--- ============================================================================
--- MIGRATION 5: Fix constraints and permissions
--- ============================================================================
-
--- Check if stripe_price_id column has NOT NULL constraint and remove it if needed
+-- Check if company_id column exists and remove it
 DO $$ 
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'pricing_plans' 
-        AND column_name = 'stripe_price_id'
-        AND is_nullable = 'NO'
+        WHERE table_name = 'users' AND column_name = 'company_id'
     ) THEN
-        ALTER TABLE pricing_plans ALTER COLUMN stripe_price_id DROP NOT NULL;
+        ALTER TABLE users DROP COLUMN company_id;
     END IF;
 END $$;
 
 -- ============================================================================
--- MIGRATION 6: Enable RLS and create policies
+-- STEP 3: Migrate existing data
 -- ============================================================================
 
--- Enable RLS on both tables
-ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pricing_plans ENABLE ROW LEVEL SECURITY;
+-- This step is only needed if you have existing data
+-- For fresh installations, this will be skipped
+DO $$
+DECLARE
+    user_record RECORD;
+    company_record RECORD;
+BEGIN
+    -- Check if there are any users with company_id (from old structure)
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'company_id'
+    ) THEN
+        -- Migrate existing user-company relationships
+        FOR user_record IN 
+            SELECT id, company_id FROM users WHERE company_id IS NOT NULL
+        LOOP
+            INSERT INTO user_companies (user_id, company_id, role, is_default)
+            VALUES (user_record.id, user_record.company_id, 'admin', true)
+            ON CONFLICT (user_id, company_id) DO NOTHING;
+        END LOOP;
+    END IF;
+END $$;
 
--- Drop existing policies to avoid conflicts
-DROP POLICY IF EXISTS "Users can view their company subscription" ON subscriptions;
-DROP POLICY IF EXISTS "Anyone can view active pricing plans" ON pricing_plans;
+-- ============================================================================
+-- STEP 4: Update RLS policies
+-- ============================================================================
 
--- Create RLS policies
-CREATE POLICY "Users can view their company subscription" ON subscriptions
-    FOR SELECT USING (company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
+-- Drop existing policies
+DROP POLICY IF EXISTS "Users can view their own company" ON companies;
+DROP POLICY IF EXISTS "Users can insert companies" ON companies;
+DROP POLICY IF EXISTS "Users can update their own company" ON companies;
+DROP POLICY IF EXISTS "Users can delete their own company" ON companies;
+
+-- Create new policies for multi-company support
+CREATE POLICY "Users can view companies they belong to" ON companies
+    FOR SELECT USING (id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
     ));
 
-CREATE POLICY "Anyone can view active pricing plans" ON pricing_plans
-    FOR SELECT USING (is_active = true);
+CREATE POLICY "Users can insert companies" ON companies
+    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Users can update companies they belong to" ON companies
+    FOR UPDATE USING (id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can delete companies they belong to" ON companies
+    FOR DELETE USING (id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
 
 -- ============================================================================
--- MIGRATION 7: Create functions and triggers
+-- STEP 5: Create RLS policies for user_companies
 -- ============================================================================
 
--- Create or replace the update_updated_at_column function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+ALTER TABLE user_companies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their company memberships" ON user_companies
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can insert their own company memberships" ON user_companies
+    FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own company memberships" ON user_companies
+    FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own company memberships" ON user_companies
+    FOR DELETE USING (user_id = auth.uid());
+
+-- ============================================================================
+-- STEP 6: Update RLS policies for other tables
+-- ============================================================================
+
+-- Update transactions policies
+DROP POLICY IF EXISTS "Users can view transactions in their company" ON transactions;
+DROP POLICY IF EXISTS "Users can insert transactions in their company" ON transactions;
+DROP POLICY IF EXISTS "Users can update transactions in their company" ON transactions;
+DROP POLICY IF EXISTS "Users can delete transactions in their company" ON transactions;
+
+CREATE POLICY "Users can view transactions in their companies" ON transactions
+    FOR SELECT USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can insert transactions in their companies" ON transactions
+    FOR INSERT WITH CHECK (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can update transactions in their companies" ON transactions
+    FOR UPDATE USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can delete transactions in their companies" ON transactions
+    FOR DELETE USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+-- Update payables_receivables policies
+DROP POLICY IF EXISTS "Users can view payables/receivables in their company" ON payables_receivables;
+DROP POLICY IF EXISTS "Users can insert payables/receivables in their company" ON payables_receivables;
+DROP POLICY IF EXISTS "Users can update payables/receivables in their company" ON payables_receivables;
+DROP POLICY IF EXISTS "Users can delete payables/receivables in their company" ON payables_receivables;
+
+CREATE POLICY "Users can view payables/receivables in their companies" ON payables_receivables
+    FOR SELECT USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can insert payables/receivables in their companies" ON payables_receivables
+    FOR INSERT WITH CHECK (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can update payables/receivables in their companies" ON payables_receivables
+    FOR UPDATE USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+CREATE POLICY "Users can delete payables/receivables in their companies" ON payables_receivables
+    FOR DELETE USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+-- Update bank_statements policies
+DROP POLICY IF EXISTS "Only admins can view bank statements" ON bank_statements;
+DROP POLICY IF EXISTS "Only admins can insert bank statements" ON bank_statements;
+
+CREATE POLICY "Only admins can view bank statements" ON bank_statements
+    FOR SELECT USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid() AND role = 'admin'
+    ));
+
+CREATE POLICY "Only admins can insert bank statements" ON bank_statements
+    FOR INSERT WITH CHECK (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid() AND role = 'admin'
+    ));
+
+-- Update subscriptions policies
+DROP POLICY IF EXISTS "Users can view their company subscription" ON subscriptions;
+
+CREATE POLICY "Users can view their companies subscriptions" ON subscriptions
+    FOR SELECT USING (company_id IN (
+        SELECT company_id FROM user_companies WHERE user_id = auth.uid()
+    ));
+
+-- ============================================================================
+-- STEP 7: Create indexes for performance
+-- ============================================================================
+
+CREATE INDEX idx_user_companies_user_id ON user_companies(user_id);
+CREATE INDEX idx_user_companies_company_id ON user_companies(company_id);
+CREATE INDEX idx_user_companies_default ON user_companies(user_id, is_default) WHERE is_default = true;
+
+-- ============================================================================
+-- STEP 8: Create triggers and functions
+-- ============================================================================
+
+-- Create trigger for user_companies updated_at
+CREATE TRIGGER update_user_companies_updated_at 
+    BEFORE UPDATE ON user_companies
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to ensure only one default company per user
+CREATE OR REPLACE FUNCTION ensure_single_default_company()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    -- If this is being set as default, unset all other defaults for this user
+    IF NEW.is_default = true THEN
+        UPDATE user_companies 
+        SET is_default = false 
+        WHERE user_id = NEW.user_id AND id != NEW.id;
+    END IF;
+    
+    -- If this user has no default company, make this one default
+    IF NOT EXISTS (
+        SELECT 1 FROM user_companies 
+        WHERE user_id = NEW.user_id AND is_default = true
+    ) THEN
+        NEW.is_default = true;
+    END IF;
+    
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Create triggers for updated_at (drop first to avoid conflicts)
-DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
-CREATE TRIGGER update_subscriptions_updated_at 
-    BEFORE UPDATE ON subscriptions
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create trigger to ensure single default company
+CREATE TRIGGER ensure_single_default_company_trigger
+    BEFORE INSERT OR UPDATE ON user_companies
+    FOR EACH ROW EXECUTE FUNCTION ensure_single_default_company();
 
-DROP TRIGGER IF EXISTS update_pricing_plans_updated_at ON pricing_plans;
-CREATE TRIGGER update_pricing_plans_updated_at 
-    BEFORE UPDATE ON pricing_plans
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Function to get user's default company
+CREATE OR REPLACE FUNCTION get_user_default_company(user_uuid UUID)
+RETURNS UUID AS $$
+DECLARE
+    default_company_id UUID;
+BEGIN
+    SELECT company_id INTO default_company_id
+    FROM user_companies
+    WHERE user_id = user_uuid AND is_default = true
+    LIMIT 1;
+    
+    RETURN default_company_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ============================================================================
--- MIGRATION 8: Insert default data
--- ============================================================================
+-- Function to create company with user (for multi-company support)
+CREATE OR REPLACE FUNCTION create_company_with_user(
+    company_name TEXT,
+    company_address TEXT DEFAULT NULL,
+    company_ein TEXT DEFAULT NULL,
+    company_accounting_method TEXT DEFAULT 'cash'
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    new_company_id UUID;
+    current_user_id UUID;
+BEGIN
+    -- Get the current user ID
+    current_user_id := auth.uid();
+    
+    -- Check if user is authenticated
+    IF current_user_id IS NULL THEN
+        RAISE EXCEPTION 'User must be authenticated to create a company';
+    END IF;
+    
+    -- Create the company
+    INSERT INTO companies (name, address, ein, accounting_method)
+    VALUES (company_name, company_address, company_ein, company_accounting_method)
+    RETURNING id INTO new_company_id;
+    
+    -- Create the user-company relationship
+    INSERT INTO user_companies (user_id, company_id, role, is_default)
+    VALUES (current_user_id, new_company_id, 'admin', false);
+    
+    -- Return the new company ID
+    RETURN new_company_id;
+END;
+$$;
 
--- Insert default pricing plan
-INSERT INTO pricing_plans (name, description, price, stripe_price_id, is_active, features)
-VALUES (
-    'Basic Plan',
-    'Perfect for small businesses getting started with accounting',
-    29.00,
-    NULL,
-    true,
-    '["Unlimited transactions", "Financial reports (P&L, Balance Sheet, Cash Flow)", "Bank statement import", "Payables & receivables tracking", "Multiple users", "Email support"]'::jsonb
-) ON CONFLICT DO NOTHING;
-
--- ============================================================================
--- MIGRATION 9: Grant permissions
--- ============================================================================
-
--- Grant necessary permissions
-GRANT ALL ON subscriptions TO authenticated;
-GRANT ALL ON pricing_plans TO authenticated;
-GRANT USAGE ON SCHEMA public TO authenticated;
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION create_company_with_user(TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 -- ============================================================================
 -- VERIFICATION
 -- ============================================================================
 
 -- Verify the migration completed successfully
-SELECT 'Complete migration finished successfully' as status;
+SELECT 'Multi-company migration completed successfully' as status;
 
--- Check that all required tables exist
+-- Check that user_companies table was created
 SELECT 
     table_name,
     'EXISTS' as status
 FROM information_schema.tables 
 WHERE table_schema = 'public' 
-    AND table_name IN ('subscriptions', 'pricing_plans')
-ORDER BY table_name;
+    AND table_name = 'user_companies';
 
--- Check that default pricing plan was inserted
+-- Check that the function was created
 SELECT 
-    name,
-    price,
-    is_active
-FROM pricing_plans 
-WHERE name = 'Basic Plan'; 
+    proname as function_name,
+    'EXISTS' as status
+FROM pg_proc 
+WHERE proname = 'create_company_with_user'; 

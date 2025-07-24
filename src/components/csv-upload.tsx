@@ -9,6 +9,7 @@ import { Upload } from 'lucide-react'
 import Papa from 'papaparse'
 import { autoCategorizeTranaction } from '@/lib/categorization'
 import { formatDateForDB } from '@/lib/date-utils'
+import { useCompany } from '@/contexts/CompanyContext'
 
 interface CSVUploadProps {
   isOpen: boolean
@@ -23,6 +24,7 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
+  const { currentCompany } = useCompany()
 
   const processFile = (selectedFile: File) => {
     if (selectedFile && selectedFile.type === 'text/csv') {
@@ -81,16 +83,20 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
     setUploading(true)
 
     try {
+      if (!currentCompany) return
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id, role')
-        .eq('id', user.id)
+      // Check if user is admin for this company
+      const { data: userCompany } = await supabase
+        .from('user_companies')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('company_id', currentCompany.id)
         .single()
 
-      if (!userData?.company_id || userData.role !== 'admin') {
+      if (!userCompany || userCompany.role !== 'admin') {
         toast({
           title: 'Error',
           description: 'Only admins can upload bank statements',
@@ -144,7 +150,7 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                 const description = (row[descCol] as string) || 'Bank import'
                 
                 return {
-                  company_id: userData.company_id,
+                  company_id: currentCompany.id,
                   user_id: user.id,
                   date: formatDateForDB(new Date(row[dateCol] as string)),
                   amount: Math.abs(amount),
@@ -170,7 +176,7 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
             const { error: statementError } = await supabase
               .from('bank_statements')
               .insert({
-                company_id: userData.company_id,
+                company_id: currentCompany.id,
                 uploaded_by: user.id,
                 file_url: uploadData.path,
                 parsed_data: results.data
