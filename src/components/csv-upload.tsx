@@ -10,6 +10,7 @@ import Papa from 'papaparse'
 import { autoCategorizeTranaction } from '@/lib/categorization'
 import { formatDateForDB } from '@/lib/date-utils'
 import { useCompany } from '@/contexts/CompanyContext'
+import { createSimpleDoubleEntryTransaction } from '@/lib/double-entry'
 
 interface CSVUploadProps {
   isOpen: boolean
@@ -166,11 +167,22 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
               throw new Error('No valid transactions found. Please check your CSV format and data.')
             }
 
-            const { error: transactionError } = await supabase
-              .from('transactions')
-              .insert(transactions)
-
-            if (transactionError) throw transactionError
+            // Convert transactions to double-entry format and create them
+            for (const transaction of transactions) {
+              if (transaction) {
+                await createSimpleDoubleEntryTransaction(
+                  supabase,
+                  transaction.company_id,
+                  transaction.user_id,
+                  transaction.date,
+                  transaction.type as 'income' | 'expense' | 'asset' | 'liability' | 'equity',
+                  transaction.category,
+                  transaction.amount,
+                  transaction.description,
+                  'import'
+                )
+              }
+            }
 
             // Save bank statement record
             const { error: statementError } = await supabase

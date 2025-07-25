@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Receipt,
   FileText,
-  CreditCard,
   Settings,
   Building2,
   LogOut,
@@ -23,11 +22,6 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Transactions', href: '/transactions', icon: Receipt },
   { name: 'Reports', href: '/reports', icon: FileText },
-  {
-    name: 'Payables/Receivables',
-    href: '/payables-receivables',
-    icon: CreditCard,
-  },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

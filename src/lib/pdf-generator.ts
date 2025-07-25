@@ -3,11 +3,11 @@ import { formatDateForPDF } from '@/lib/date-utils'
 
 export interface ReportData {
   profitLoss: {
-    revenue: { [category: string]: number }
-    costOfGoodsSold: { [category: string]: number }
-    operatingExpenses: { [category: string]: number }
-    otherIncome: { [category: string]: number }
-    otherExpenses: { [category: string]: number }
+    revenue: Array<{ accountNumber: string; accountName: string; amount: number }>
+    costOfGoodsSold: Array<{ accountNumber: string; accountName: string; amount: number }>
+    operatingExpenses: Array<{ accountNumber: string; accountName: string; amount: number }>
+    otherIncome: Array<{ accountNumber: string; accountName: string; amount: number }>
+    otherExpenses: Array<{ accountNumber: string; accountName: string; amount: number }>
     totalRevenue: number
     totalCostOfGoodsSold: number
     totalOperatingExpenses: number
@@ -18,29 +18,29 @@ export interface ReportData {
     netIncome: number
   }
   balanceSheet: {
-    assets: { [category: string]: number }
-    liabilities: { [category: string]: number }
-    equity: { [category: string]: number }
+    assets: Array<{ accountNumber: string; accountName: string; amount: number }>
+    liabilities: Array<{ accountNumber: string; accountName: string; amount: number }>
+    equity: Array<{ accountNumber: string; accountName: string; amount: number }>
     totalAssets: number
     totalLiabilities: number
     totalEquity: number
   }
   cashFlow: {
-    operatingActivities: { [category: string]: number }
-    investingActivities: { [category: string]: number }
-    financingActivities: { [category: string]: number }
+    operatingActivities: Array<{ accountNumber: string; accountName: string; amount: number }>
+    investingActivities: Array<{ accountNumber: string; accountName: string; amount: number }>
+    financingActivities: Array<{ accountNumber: string; accountName: string; amount: number }>
     totalOperatingActivities: number
     totalInvestingActivities: number
     totalFinancingActivities: number
     netCashFlow: number
   }
   generalLedger: {
-    accounts: { [account: string]: { debits: number; credits: number; balance: number } }
+    accounts: Array<{ accountNumber: string; accountName: string; debits: number; credits: number; balance: number }>
     totalDebits: number
     totalCredits: number
   }
   trialBalance: {
-    accounts: { [account: string]: { debits: number; credits: number; balance: number } }
+    accounts: Array<{ accountNumber: string; accountName: string; debits: number; credits: number; balance: number }>
     totalDebits: number
     totalCredits: number
     isBalanced: boolean
@@ -118,9 +118,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     addText('Revenue:', 50, yPosition, 14, true)
     yPosition -= 20
 
-    Object.entries(reportData.profitLoss.revenue).forEach(([category, amount]) => {
-      addText(category, 70, yPosition)
-      addText(formatCurrency(amount), width - 150, yPosition)
+    reportData.profitLoss.revenue.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+      addText(formatCurrency(item.amount), width - 150, yPosition)
       yPosition -= 15
     })
 
@@ -129,13 +129,13 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     yPosition -= 30
 
     // Cost of Goods Sold section
-    if (Object.keys(reportData.profitLoss.costOfGoodsSold).length > 0) {
+    if (reportData.profitLoss.costOfGoodsSold.length > 0) {
       addText('Cost of Goods Sold:', 50, yPosition, 14, true)
       yPosition -= 20
 
-      Object.entries(reportData.profitLoss.costOfGoodsSold).forEach(([category, amount]) => {
-        addText(category, 70, yPosition)
-        addText(formatCurrency(amount), width - 150, yPosition)
+      reportData.profitLoss.costOfGoodsSold.forEach((item) => {
+        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+        addText(formatCurrency(item.amount), width - 150, yPosition)
         yPosition -= 15
       })
 
@@ -153,9 +153,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     addText('Operating Expenses:', 50, yPosition, 14, true)
     yPosition -= 20
 
-    Object.entries(reportData.profitLoss.operatingExpenses).forEach(([category, amount]) => {
-      addText(category, 70, yPosition)
-      addText(formatCurrency(amount), width - 150, yPosition)
+    reportData.profitLoss.operatingExpenses.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+      addText(formatCurrency(item.amount), width - 150, yPosition)
       yPosition -= 15
     })
 
@@ -169,13 +169,13 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     yPosition -= 30
 
     // Other Income section
-    if (Object.keys(reportData.profitLoss.otherIncome).length > 0) {
+    if (reportData.profitLoss.otherIncome.length > 0) {
       addText('Other Income:', 50, yPosition, 14, true)
       yPosition -= 20
 
-      Object.entries(reportData.profitLoss.otherIncome).forEach(([category, amount]) => {
-        addText(category, 70, yPosition)
-        addText(formatCurrency(amount), width - 150, yPosition)
+      reportData.profitLoss.otherIncome.forEach((item) => {
+        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+        addText(formatCurrency(item.amount), width - 150, yPosition)
         yPosition -= 15
       })
 
@@ -185,13 +185,13 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     }
 
     // Other Expenses section
-    if (Object.keys(reportData.profitLoss.otherExpenses).length > 0) {
+    if (reportData.profitLoss.otherExpenses.length > 0) {
       addText('Other Expenses:', 50, yPosition, 14, true)
       yPosition -= 20
 
-      Object.entries(reportData.profitLoss.otherExpenses).forEach(([category, amount]) => {
-        addText(category, 70, yPosition)
-        addText(formatCurrency(amount), width - 150, yPosition)
+      reportData.profitLoss.otherExpenses.forEach((item) => {
+        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+        addText(formatCurrency(item.amount), width - 150, yPosition)
         yPosition -= 15
       })
 
@@ -211,9 +211,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     addText('Assets:', 50, yPosition, 14, true)
     yPosition -= 20
 
-    Object.entries(reportData.balanceSheet.assets).forEach(([category, amount]) => {
-      addText(category, 70, yPosition)
-      addText(formatCurrency(amount), width - 150, yPosition)
+    reportData.balanceSheet.assets.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+      addText(formatCurrency(item.amount), width - 150, yPosition)
       yPosition -= 15
     })
 
@@ -225,9 +225,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     addText('Liabilities:', 50, yPosition, 14, true)
     yPosition -= 20
 
-    Object.entries(reportData.balanceSheet.liabilities).forEach(([category, amount]) => {
-      addText(category, 70, yPosition)
-      addText(formatCurrency(amount), width - 150, yPosition)
+    reportData.balanceSheet.liabilities.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+      addText(formatCurrency(item.amount), width - 150, yPosition)
       yPosition -= 15
     })
 
@@ -239,9 +239,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     addText("Owner's Equity:", 50, yPosition, 14, true)
     yPosition -= 20
 
-    Object.entries(reportData.balanceSheet.equity).forEach(([category, amount]) => {
-      addText(category, 70, yPosition)
-      addText(formatCurrency(amount), width - 150, yPosition)
+    reportData.balanceSheet.equity.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+      addText(formatCurrency(item.amount), width - 150, yPosition)
       yPosition -= 15
     })
 
@@ -260,9 +260,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     addText('Operating Activities:', 50, yPosition, 14, true)
     yPosition -= 20
 
-    Object.entries(reportData.cashFlow.operatingActivities).forEach(([category, amount]) => {
-      addText(category, 70, yPosition)
-      addText(formatCurrency(amount), width - 150, yPosition)
+    reportData.cashFlow.operatingActivities.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+      addText(formatCurrency(item.amount), width - 150, yPosition)
       yPosition -= 15
     })
 
@@ -271,13 +271,13 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     yPosition -= 25
 
     // Investing Activities
-    if (Object.keys(reportData.cashFlow.investingActivities).length > 0) {
+    if (reportData.cashFlow.investingActivities.length > 0) {
       addText('Investing Activities:', 50, yPosition, 14, true)
       yPosition -= 20
 
-      Object.entries(reportData.cashFlow.investingActivities).forEach(([category, amount]) => {
-        addText(category, 70, yPosition)
-        addText(formatCurrency(amount), width - 150, yPosition)
+      reportData.cashFlow.investingActivities.forEach((item) => {
+        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+        addText(formatCurrency(item.amount), width - 150, yPosition)
         yPosition -= 15
       })
 
@@ -287,13 +287,13 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     }
 
     // Financing Activities
-    if (Object.keys(reportData.cashFlow.financingActivities).length > 0) {
+    if (reportData.cashFlow.financingActivities.length > 0) {
       addText('Financing Activities:', 50, yPosition, 14, true)
       yPosition -= 20
 
-      Object.entries(reportData.cashFlow.financingActivities).forEach(([category, amount]) => {
-        addText(category, 70, yPosition)
-        addText(formatCurrency(amount), width - 150, yPosition)
+      reportData.cashFlow.financingActivities.forEach((item) => {
+        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
+        addText(formatCurrency(item.amount), width - 150, yPosition)
         yPosition -= 15
       })
 

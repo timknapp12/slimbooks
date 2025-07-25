@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { Building2, Users, CreditCard, Plus, Edit2, Check, X } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
+import ChartOfAccounts from '@/components/chart-of-accounts'
 
 
 
@@ -51,76 +52,101 @@ function SettingsPageContent() {
   })
 
   const fetchData = useCallback(async () => {
-    try {
-      if (!currentCompany) return
+    if (!currentCompany) return
 
-      // Fetch all users in the company
-      const { data: usersData } = await supabase
+    try {
+      setLoading(true)
+
+      // Fetch users for the current company
+      const { data: usersData, error: usersError } = await supabase
         .from('user_companies')
         .select(`
+          id,
           user_id,
           role,
-          users!inner(id, email)
+          user:users(
+            id,
+            email
+          )
         `)
         .eq('company_id', currentCompany.id)
 
-      const formattedUsers = usersData?.map((uc: { users: { id: string; email: string }; role: string }) => ({
-        id: uc.users.id,
-        email: uc.users.email,
+      if (usersError) {
+        console.error('Error fetching users:', usersError)
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch users',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      // Transform the data to match the User interface
+      const users: User[] = usersData?.map((uc: { user_id: string; user: { email: string }; role: string }) => ({
+        id: uc.user_id,
+        email: uc.user.email,
         role: uc.role
       })) || []
 
-      setUsers(formattedUsers)
+      setUsers(users)
 
-      // Check subscription status (handle gracefully if table doesn't exist)
+      // Fetch subscription info - wrap in try-catch to handle RLS issues gracefully
+      // COMMENTED OUT FOR NOW - subscription functionality will be added later
+      /*
       try {
-        // First check if the table exists by trying a simple query
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('subscriptions')
-          .select('stripe_customer_id, status')
+          .select('*')
           .eq('company_id', currentCompany.id)
-          .maybeSingle() // Use maybeSingle instead of single to avoid errors if no data
+          .single()
 
         if (subscriptionError) {
-          console.warn('Subscriptions table not available:', subscriptionError)
+          if (subscriptionError.code === 'PGRST116') {
+            // No subscription found - this is normal
+            setHasSubscription(false)
+            // Fetch default pricing plan for new subscriptions
+            const { data: pricingPlan } = await supabase
+              .from('pricing_plans')
+              .select('stripe_price_id')
+              .eq('is_active', true)
+              .single()
+            setPriceId(pricingPlan?.stripe_price_id || null)
+          } else {
+            console.error('Error fetching subscription:', subscriptionError)
+            // Don't show error toast for subscription issues, just log it
+            setHasSubscription(false)
+            setPriceId(null)
+          }
+        } else if (subscriptionData) {
+          setHasSubscription(true)
+          // Use stripe_price_id instead of price_id
+          setPriceId(subscriptionData.stripe_price_id)
+        } else {
           setHasSubscription(false)
-        } else {
-          setHasSubscription(!!subscriptionData?.stripe_customer_id && subscriptionData.status === 'active')
-        }
-      } catch (error) {
-        console.warn('Subscriptions table not available:', error)
-        setHasSubscription(false)
-      }
-
-      // Fetch pricing plan (handle gracefully if table doesn't exist)
-      try {
-        const { data: pricingData, error: pricingError } = await supabase
-          .from('pricing_plans')
-          .select('stripe_price_id')
-          .eq('is_active', true)
-          .maybeSingle() // Use maybeSingle instead of single to avoid errors if no data
-
-        if (pricingError) {
-          console.warn('Pricing plans table not available:', pricingError)
           setPriceId(null)
-        } else {
-          setPriceId(pricingData?.stripe_price_id || null)
         }
       } catch (error) {
-        console.warn('Pricing plans table not available:', error)
+        // Handle any unexpected errors (like RLS policy issues)
+        console.warn('Subscription fetch failed, continuing without subscription data:', error)
+        setHasSubscription(false)
         setPriceId(null)
       }
+      */
+      
+      // Set default values for now
+      setHasSubscription(false)
+      setPriceId('price_test_basic_plan')
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error('Error in fetchData:', error)
       toast({
         title: 'Error',
-        description: 'Failed to fetch settings data',
+        description: 'Failed to fetch data',
         variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
-  }, [supabase, toast])
+  }, [supabase, toast, currentCompany])
 
   useEffect(() => {
     if (currentCompany) {
@@ -316,6 +342,7 @@ function SettingsPageContent() {
         <TabsList>
           <TabsTrigger value="companies">Companies</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="chart-of-accounts">Chart of Accounts</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
 
@@ -454,9 +481,19 @@ function SettingsPageContent() {
                         const { data: { user } } = await supabase.auth.getUser()
                         if (!user) return
 
+                        // Check if email is verified
+                        if (!user.email_confirmed_at) {
+                          toast({
+                            title: 'Email verification required',
+                            description: 'Please verify your email address before creating a company.',
+                            variant: 'destructive',
+                          })
+                          return
+                        }
+
                         // Create new company using database function
                         const { error: functionError } = await supabase
-                          .rpc('create_company_with_user', {
+                          .rpc('create_company_with_user_auth', {
                             company_name: newCompanyForm.name,
                             company_address: newCompanyForm.address || null,
                             company_ein: newCompanyForm.ein || null,
@@ -473,13 +510,14 @@ function SettingsPageContent() {
                         setShowAddCompany(false)
                         setNewCompanyForm({ name: '', address: '', ein: '', accounting_method: 'cash' })
                         await refreshCompanies()
-                                             } catch {
-                         toast({
-                           title: 'Error',
-                           description: 'Failed to create company',
-                           variant: 'destructive',
-                         })
-                       }
+                      } catch (error) {
+                        console.error('Company creation error:', error)
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to create company',
+                          variant: 'destructive',
+                        })
+                      }
                     }}>
                       <div className="space-y-4">
                         <div>
@@ -571,6 +609,10 @@ function SettingsPageContent() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="chart-of-accounts">
+          <ChartOfAccounts />
         </TabsContent>
 
         <TabsContent value="billing">

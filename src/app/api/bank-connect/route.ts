@@ -115,21 +115,23 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: userData } = await supabase
-      .from('users')
+    // Get user's default company
+    const { data: userCompany } = await supabase
+      .from('user_companies')
       .select('company_id')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
+      .eq('is_default', true)
       .single()
 
-    if (!userData?.company_id) {
-      return NextResponse.json({ error: 'No company found' }, { status: 400 })
+    if (!userCompany?.company_id) {
+      return NextResponse.json({ error: 'No default company found' }, { status: 400 })
     }
 
     // Fetch bank connections
     const { data: connections } = await supabase
       .from('bank_connections')
       .select('*')
-      .eq('company_id', userData.company_id)
+      .eq('company_id', userCompany.company_id)
 
     return NextResponse.json({
       connections: connections || [],

@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { FormWrapper } from '@/components/form-wrapper';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -43,12 +44,28 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      console.log('Starting signup process for email:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
+      console.log('Signup response:', { 
+        data: data ? { 
+          user: data.user ? { 
+            id: data.user.id, 
+            email: data.user.email, 
+            email_confirmed_at: data.user.email_confirmed_at,
+            confirmed_at: data.user.confirmed_at 
+          } : null, 
+          session: data.session ? 'present' : null 
+        } : null, 
+        error 
+      });
+
       if (error) {
+        console.error('Signup error:', error);
         // Provide more helpful error messages
         if (error.message.includes('User already registered')) {
           toast({
@@ -77,6 +94,19 @@ export default function SignupPage() {
           });
         }
       } else {
+        console.log('Signup successful, checking if user was created in our database...');
+        
+        // Check if the user was created in our users table
+        if (data.user) {
+          const { data: userCheck, error: userCheckError } = await supabase
+            .from('users')
+            .select('id, email')
+            .eq('id', data.user.id)
+            .single();
+            
+          console.log('User check result:', { userCheck, userCheckError });
+        }
+        
         toast({
           title: 'Account created successfully!',
           description: 'Please check your email and click the verification link before continuing.',
@@ -84,7 +114,8 @@ export default function SignupPage() {
         });
         router.push('/login');
       }
-    } catch {
+    } catch (error) {
+      console.error('Unexpected signup error:', error);
       toast({
         title: 'Error',
         description: 'An unexpected error occurred. Please try again.',
@@ -105,43 +136,48 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignup} className='space-y-4'>
-            <div className='space-y-2'>
-              <Label htmlFor='email'>Email</Label>
-              <Input
-                id='email'
-                type='email'
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='password'>Password</Label>
-              <Input
-                id='password'
-                type='password'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='confirmPassword'>Confirm Password</Label>
-              <Input
-                id='confirmPassword'
-                type='password'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-            <Button type='submit' className='w-full' disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Account'}
-            </Button>
-          </form>
+          <FormWrapper>
+            <form onSubmit={handleSignup} className='space-y-4'>
+              <div className='space-y-2'>
+                <Label htmlFor='email'>Email</Label>
+                <Input
+                  id='email'
+                  type='email'
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='password'>Password</Label>
+                <Input
+                  id='password'
+                  type='password'
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='confirmPassword'>Confirm Password</Label>
+                <Input
+                  id='confirmPassword'
+                  type='password'
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+              <Button type='submit' className='w-full' disabled={loading}>
+                {loading ? 'Creating account...' : 'Create Account'}
+              </Button>
+            </form>
+          </FormWrapper>
           <div className='mt-4 text-center space-y-2'>
             <p className='text-sm text-muted-foreground'>
               Already have an account?
