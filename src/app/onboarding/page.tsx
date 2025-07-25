@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
+import { FormWrapper } from '@/components/form-wrapper'
 
 export default function OnboardingPage() {
   const [companyName, setCompanyName] = useState('')
@@ -55,6 +56,17 @@ export default function OnboardingPage() {
       
       if (!user) {
         router.push('/login')
+        return
+      }
+
+      // Check if email is verified
+      if (!user.email_confirmed_at) {
+        toast({
+          title: 'Email verification required',
+          description: 'Please verify your email address before setting up your company.',
+          variant: 'destructive',
+        })
+        setLoading(false)
         return
       }
 
@@ -136,39 +148,41 @@ export default function OnboardingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Company Name *</Label>
-              <Input
-                id="companyName"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ein">EIN (Employer Identification Number)</Label>
-              <Input
-                id="ein"
-                value={ein}
-                onChange={(e) => setEin(e.target.value)}
-                placeholder="XX-XXXXXXX"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Business Address</Label>
-              <Input
-                id="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="123 Main St, City, State, ZIP"
-              />
-            </div>
+          <FormWrapper>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Company Name *</Label>
+                <Input
+                  id="companyName"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ein">EIN (Employer Identification Number)</Label>
+                <Input
+                  id="ein"
+                  value={ein}
+                  onChange={(e) => setEin(e.target.value)}
+                  placeholder="XX-XXXXXXX"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Business Address</Label>
+                <Input
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="123 Main St, City, State, ZIP"
+                />
+              </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating...' : 'Complete Setup'}
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Creating...' : 'Complete Setup'}
+              </Button>
+            </form>
+          </FormWrapper>
         </CardContent>
       </Card>
     </div>

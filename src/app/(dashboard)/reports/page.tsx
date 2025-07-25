@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table'
-import { FileText, Download } from 'lucide-react'
-import { generateFinancialReportPDF, downloadPDF, type ReportData } from '@/lib/pdf-generator'
+import { Download } from 'lucide-react'
+import { generateFinancialReportPDF, downloadPDF } from '@/lib/pdf-generator'
+import { generateFinancialReportsDoubleEntry, type ReportData } from '@/lib/report-generator-double-entry'
 import { 
   formatDate, 
   getCurrentYear, 
@@ -28,11 +29,11 @@ import { useCompany } from '@/contexts/CompanyContext'
 export default function ReportsPage() {
   const [reportData, setReportData] = useState<ReportData>({
     profitLoss: {
-      revenue: {},
-      costOfGoodsSold: {},
-      operatingExpenses: {},
-      otherIncome: {},
-      otherExpenses: {},
+      revenue: [],
+      costOfGoodsSold: [],
+      operatingExpenses: [],
+      otherIncome: [],
+      otherExpenses: [],
       totalRevenue: 0,
       totalCostOfGoodsSold: 0,
       totalOperatingExpenses: 0,
@@ -43,29 +44,29 @@ export default function ReportsPage() {
       netIncome: 0
     },
     balanceSheet: {
-      assets: {},
-      liabilities: {},
-      equity: {},
+      assets: [],
+      liabilities: [],
+      equity: [],
       totalAssets: 0,
       totalLiabilities: 0,
       totalEquity: 0
     },
     cashFlow: {
-      operatingActivities: {},
-      investingActivities: {},
-      financingActivities: {},
+      operatingActivities: [],
+      investingActivities: [],
+      financingActivities: [],
       totalOperatingActivities: 0,
       totalInvestingActivities: 0,
       totalFinancingActivities: 0,
       netCashFlow: 0
     },
     generalLedger: {
-      accounts: {},
+      accounts: [],
       totalDebits: 0,
       totalCredits: 0
     },
     trialBalance: {
-      accounts: {},
+      accounts: [],
       totalDebits: 0,
       totalCredits: 0,
       isBalanced: true
@@ -86,299 +87,15 @@ export default function ReportsPage() {
     try {
       if (!currentCompany) return
 
-      // Get transactions for the date range
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-        .gte('date', dateFrom)
-        .lte('date', dateTo)
-
-      // Get payables/receivables
-      const { data: payables } = await supabase
-        .from('payables_receivables')
-        .select('*')
-        .eq('company_id', currentCompany.id)
-
-      if (!transactions) return
-
-      // Calculate Profit & Loss according to GAAP standards
-      const revenueByCategory: { [key: string]: number } = {}
-      const costOfGoodsSoldByCategory: { [key: string]: number } = {}
-      const operatingExpensesByCategory: { [key: string]: number } = {}
-      const otherIncomeByCategory: { [key: string]: number } = {}
-      const otherExpensesByCategory: { [key: string]: number } = {}
-      
-      let totalRevenue = 0
-      let totalCostOfGoodsSold = 0
-      let totalOperatingExpenses = 0
-      let totalOtherIncome = 0
-      let totalOtherExpenses = 0
-
-      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
-        const amount = Number(transaction.amount)
-        
-        if (transaction.type === 'income') {
-          // Categorize income into Revenue vs Other Income
-          if (['Sales Revenue', 'Service Revenue', 'Consulting Income', 'Rental Income'].includes(transaction.category)) {
-            revenueByCategory[transaction.category] = (revenueByCategory[transaction.category] || 0) + amount
-            totalRevenue += amount
-          } else {
-            otherIncomeByCategory[transaction.category] = (otherIncomeByCategory[transaction.category] || 0) + amount
-            totalOtherIncome += amount
-          }
-        } else if (transaction.type === 'expense') {
-          // Categorize expenses into COGS vs Operating Expenses vs Other Expenses
-          if (['Cost of Goods Sold', 'Inventory', 'Materials', 'Direct Labor'].includes(transaction.category)) {
-            costOfGoodsSoldByCategory[transaction.category] = (costOfGoodsSoldByCategory[transaction.category] || 0) + amount
-            totalCostOfGoodsSold += amount
-          } else if (['Office Supplies', 'Travel', 'Meals & Entertainment', 'Software & Subscriptions', 'Marketing', 'Utilities', 'Rent', 'Insurance', 'Equipment', 'Legal & Accounting', 'Bank Fees', 'Professional Services'].includes(transaction.category)) {
-            operatingExpensesByCategory[transaction.category] = (operatingExpensesByCategory[transaction.category] || 0) + amount
-            totalOperatingExpenses += amount
-          } else {
-            otherExpensesByCategory[transaction.category] = (otherExpensesByCategory[transaction.category] || 0) + amount
-            totalOtherExpenses += amount
-          }
-        }
+      const reportData = await generateFinancialReportsDoubleEntry({
+        supabase,
+        companyId: currentCompany.id,
+        fromDate: dateFrom,
+        toDate: dateTo
       })
 
-      // Calculate Balance Sheet according to GAAP standards
-      const assetsByCategory: { [key: string]: number } = {}
-      const liabilitiesByCategory: { [key: string]: number } = {}
-      const equityByCategory: { [key: string]: number } = {}
-      
-      let totalAssets = 0
-      let totalLiabilities = 0
-      let totalEquity = 0
-
-      // Process all transactions for balance sheet
-      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
-        const amount = Number(transaction.amount)
-        
-        if (transaction.type === 'asset') {
-          assetsByCategory[transaction.category] = (assetsByCategory[transaction.category] || 0) + amount
-          totalAssets += amount
-        } else if (transaction.type === 'liability') {
-          liabilitiesByCategory[transaction.category] = (liabilitiesByCategory[transaction.category] || 0) + amount
-          totalLiabilities += amount
-        } else if (transaction.type === 'equity') {
-          equityByCategory[transaction.category] = (equityByCategory[transaction.category] || 0) + amount
-          totalEquity += amount
-        }
-      })
-
-      // Add payables/receivables to balance sheet
-      const openReceivables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'receivable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
-      const openPayables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'payable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
-      
-      if (openReceivables > 0) {
-        assetsByCategory['Accounts Receivable'] = (assetsByCategory['Accounts Receivable'] || 0) + openReceivables
-        totalAssets += openReceivables
-      }
-      
-      if (openPayables > 0) {
-        liabilitiesByCategory['Accounts Payable'] = (liabilitiesByCategory['Accounts Payable'] || 0) + openPayables
-        totalLiabilities += openPayables
-      }
-
-      // Calculate net income for retained earnings
-      const grossProfit = totalRevenue - totalCostOfGoodsSold
-      const operatingIncome = grossProfit - totalOperatingExpenses
-      const netIncome = operatingIncome + totalOtherIncome - totalOtherExpenses
-      
-      // Add net income to retained earnings in equity
-      if (netIncome !== 0) {
-        equityByCategory['Retained Earnings'] = (equityByCategory['Retained Earnings'] || 0) + netIncome
-        totalEquity += netIncome
-      }
-
-      // Ensure Assets = Liabilities + Equity (basic accounting equation)
-      const accountingEquationBalance = totalAssets - (totalLiabilities + totalEquity)
-      if (Math.abs(accountingEquationBalance) > 0.01) {
-        // Adjust equity to balance the equation
-        equityByCategory['Retained Earnings'] = (equityByCategory['Retained Earnings'] || 0) + accountingEquationBalance
-        totalEquity += accountingEquationBalance
-      }
-
-      // Calculate Cash Flow Statement according to GAAP standards
-      const operatingActivitiesByCategory: { [key: string]: number } = {}
-      const investingActivitiesByCategory: { [key: string]: number } = {}
-      const financingActivitiesByCategory: { [key: string]: number } = {}
-      
-      let totalOperatingActivities = 0
-      let totalInvestingActivities = 0
-      let totalFinancingActivities = 0
-
-      // Process all transactions for cash flow categorization
-      transactions.forEach((transaction: { type: string; category: string; amount: number }) => {
-        const amount = Number(transaction.amount)
-        
-        if (transaction.type === 'income') {
-          // Operating activities - revenue generation
-          operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) + amount
-          totalOperatingActivities += amount
-        } else if (transaction.type === 'expense') {
-          // Operating activities - expense payments
-          operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) - amount
-          totalOperatingActivities -= amount
-        } else if (transaction.type === 'asset') {
-          // Investing activities - asset purchases/sales
-          if (['Equipment', 'Furniture', 'Vehicles', 'Buildings', 'Land'].includes(transaction.category)) {
-            investingActivitiesByCategory[transaction.category] = (investingActivitiesByCategory[transaction.category] || 0) - amount
-            totalInvestingActivities -= amount
-          } else {
-            // Other assets might be operating (inventory, prepaid expenses)
-            operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) - amount
-            totalOperatingActivities -= amount
-          }
-        } else if (transaction.type === 'liability') {
-          // Financing activities - debt transactions
-          financingActivitiesByCategory[transaction.category] = (financingActivitiesByCategory[transaction.category] || 0) + amount
-          totalFinancingActivities += amount
-        } else if (transaction.type === 'equity') {
-          // Financing activities - equity transactions
-          if (['Owner\'s Capital', 'Owner\'s Draws', 'Owner\'s Draw', 'Owner\'s Contribution', 'Common Stock'].includes(transaction.category)) {
-            financingActivitiesByCategory[transaction.category] = (financingActivitiesByCategory[transaction.category] || 0) + amount
-            totalFinancingActivities += amount
-          } else if (['Loan Transaction', 'Investment Transaction'].includes(transaction.category)) {
-            financingActivitiesByCategory[transaction.category] = (financingActivitiesByCategory[transaction.category] || 0) + amount
-            totalFinancingActivities += amount
-          } else {
-            // Internal transfers and other equity items
-            operatingActivitiesByCategory[transaction.category] = (operatingActivitiesByCategory[transaction.category] || 0) + amount
-            totalOperatingActivities += amount
-          }
-        }
-      })
-
-      // Add net income as starting point for operating activities
-      if (netIncome !== 0) {
-        operatingActivitiesByCategory['Net Income'] = (operatingActivitiesByCategory['Net Income'] || 0) + netIncome
-        totalOperatingActivities += netIncome
-      }
-
-      // Add changes in working capital (simplified)
-      const changeInReceivables = openReceivables > 0 ? -openReceivables : 0
-      const changeInPayables = openPayables > 0 ? openPayables : 0
-      
-      if (changeInReceivables !== 0) {
-        operatingActivitiesByCategory['Change in Accounts Receivable'] = changeInReceivables
-        totalOperatingActivities += changeInReceivables
-      }
-      
-      if (changeInPayables !== 0) {
-        operatingActivitiesByCategory['Change in Accounts Payable'] = changeInPayables
-        totalOperatingActivities += changeInPayables
-      }
-
-      const netCashFlow = totalOperatingActivities + totalInvestingActivities + totalFinancingActivities
-
-      // Calculate General Ledger according to GAAP standards
-      const generalLedgerAccounts: { [account: string]: { debits: number; credits: number; balance: number } } = {}
-      let totalDebits = 0
-      let totalCredits = 0
-
-      // Process all transactions for general ledger
-      transactions.forEach((transaction: { type: string; category: string; amount: number; description?: string; date: string }) => {
-        const amount = Number(transaction.amount)
-        const accountName = transaction.category
-        
-        if (!generalLedgerAccounts[accountName]) {
-          generalLedgerAccounts[accountName] = { debits: 0, credits: 0, balance: 0 }
-        }
-
-        // Apply double-entry bookkeeping rules
-        if (transaction.type === 'asset') {
-          // Assets: Debit increases, Credit decreases
-          generalLedgerAccounts[accountName].debits += amount
-          generalLedgerAccounts[accountName].balance += amount
-          totalDebits += amount
-        } else if (transaction.type === 'liability') {
-          // Liabilities: Credit increases, Debit decreases
-          generalLedgerAccounts[accountName].credits += amount
-          generalLedgerAccounts[accountName].balance -= amount
-          totalCredits += amount
-        } else if (transaction.type === 'equity') {
-          // Equity: Credit increases, Debit decreases
-          generalLedgerAccounts[accountName].credits += amount
-          generalLedgerAccounts[accountName].balance -= amount
-          totalCredits += amount
-        } else if (transaction.type === 'income') {
-          // Income: Credit increases, Debit decreases
-          generalLedgerAccounts[accountName].credits += amount
-          generalLedgerAccounts[accountName].balance -= amount
-          totalCredits += amount
-        } else if (transaction.type === 'expense') {
-          // Expenses: Debit increases, Credit decreases
-          generalLedgerAccounts[accountName].debits += amount
-          generalLedgerAccounts[accountName].balance += amount
-          totalDebits += amount
-        }
-      })
-
-      // Calculate Trial Balance
-      const trialBalanceAccounts: { [account: string]: { debits: number; credits: number; balance: number } } = {}
-      let trialBalanceTotalDebits = 0
-      let trialBalanceTotalCredits = 0
-
-      // Copy general ledger accounts to trial balance
-      Object.entries(generalLedgerAccounts).forEach(([account, data]) => {
-        trialBalanceAccounts[account] = { ...data }
-        if (data.balance > 0) {
-          trialBalanceTotalDebits += data.balance
-        } else {
-          trialBalanceTotalCredits += Math.abs(data.balance)
-        }
-      })
-
-      // Check if trial balance is balanced (debits = credits)
-      const isBalanced = Math.abs(trialBalanceTotalDebits - trialBalanceTotalCredits) < 0.01
-
-      setReportData({
-        profitLoss: {
-          revenue: revenueByCategory,
-          costOfGoodsSold: costOfGoodsSoldByCategory,
-          operatingExpenses: operatingExpensesByCategory,
-          otherIncome: otherIncomeByCategory,
-          otherExpenses: otherExpensesByCategory,
-          totalRevenue,
-          totalCostOfGoodsSold,
-          totalOperatingExpenses,
-          totalOtherIncome,
-          totalOtherExpenses,
-          grossProfit,
-          operatingIncome,
-          netIncome
-        },
-        balanceSheet: {
-          assets: assetsByCategory,
-          liabilities: liabilitiesByCategory,
-          equity: equityByCategory,
-          totalAssets,
-          totalLiabilities,
-          totalEquity
-        },
-        cashFlow: {
-          operatingActivities: operatingActivitiesByCategory,
-          investingActivities: investingActivitiesByCategory,
-          financingActivities: financingActivitiesByCategory,
-          totalOperatingActivities,
-          totalInvestingActivities,
-          totalFinancingActivities,
-          netCashFlow
-        },
-        generalLedger: {
-          accounts: generalLedgerAccounts,
-          totalDebits,
-          totalCredits
-        },
-        trialBalance: {
-          accounts: trialBalanceAccounts,
-          totalDebits: trialBalanceTotalDebits,
-          totalCredits: trialBalanceTotalCredits,
-          isBalanced
-        }
-      })
+      // Set the report data
+      setReportData(reportData)
     } catch (error) {
       console.error('Error fetching report data:', error)
     } finally {
@@ -390,10 +107,11 @@ export default function ReportsPage() {
     if (currentCompany) {
       fetchReportData()
     }
-  }, [fetchReportData, currentCompany])
+  }, [currentCompany?.id]) // Only depend on company ID, not fetchReportData
+  
   useEffect(() => {
     updateDatesForYear(selectedYear)
-  }, []) // Only run once on mount
+  }, [selectedYear]) // Include selectedYear in dependencies
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -458,7 +176,7 @@ export default function ReportsPage() {
     try {
       setPdfGenerating(true)
       const pdfBytes = await generateFinancialReportPDF({
-        companyName: 'Your Company',
+        companyName: currentCompany?.name || 'Your Company',
         dateFrom,
         dateTo,
         accountingMethod,
@@ -479,7 +197,7 @@ export default function ReportsPage() {
     try {
       setPdfGenerating(true)
       const pdfBytes = await generateFinancialReportPDF({
-        companyName: 'Your Company',
+        companyName: currentCompany?.name || 'Your Company',
         dateFrom,
         dateTo,
         accountingMethod,
@@ -487,7 +205,7 @@ export default function ReportsPage() {
         reportType: 'balance-sheet',
       })
 
-      const filename = `balance-sheet-report-${dateTo}.pdf`
+      const filename = `balance-sheet-report-${dateFrom}-to-${dateTo}.pdf`
       await downloadPDF(pdfBytes, filename)
     } catch (error) {
       console.error('Error generating Balance Sheet PDF:', error)
@@ -500,7 +218,7 @@ export default function ReportsPage() {
     try {
       setPdfGenerating(true)
       const pdfBytes = await generateFinancialReportPDF({
-        companyName: 'Your Company',
+        companyName: currentCompany?.name || 'Your Company',
         dateFrom,
         dateTo,
         accountingMethod,
@@ -521,7 +239,7 @@ export default function ReportsPage() {
     try {
       setPdfGenerating(true)
       const pdfBytes = await generateFinancialReportPDF({
-        companyName: 'Your Company',
+        companyName: currentCompany?.name || 'Your Company',
         dateFrom,
         dateTo,
         accountingMethod,
@@ -529,7 +247,7 @@ export default function ReportsPage() {
         reportType: 'general-ledger',
       })
 
-      const filename = `general-ledger-${dateFrom}-to-${dateTo}.pdf`
+      const filename = `general-ledger-report-${dateFrom}-to-${dateTo}.pdf`
       await downloadPDF(pdfBytes, filename)
     } catch (error) {
       console.error('Error generating General Ledger PDF:', error)
@@ -542,7 +260,7 @@ export default function ReportsPage() {
     try {
       setPdfGenerating(true)
       const pdfBytes = await generateFinancialReportPDF({
-        companyName: 'Your Company',
+        companyName: currentCompany?.name || 'Your Company',
         dateFrom,
         dateTo,
         accountingMethod,
@@ -550,7 +268,7 @@ export default function ReportsPage() {
         reportType: 'trial-balance',
       })
 
-      const filename = `trial-balance-${dateTo}.pdf`
+      const filename = `trial-balance-report-${dateFrom}-to-${dateTo}.pdf`
       await downloadPDF(pdfBytes, filename)
     } catch (error) {
       console.error('Error generating Trial Balance PDF:', error)
@@ -560,784 +278,622 @@ export default function ReportsPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center py-8">
+          <p>Loading reports...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Financial Reports</h1>
-        <p className="text-muted-foreground">
-          View your business financial statements
-        </p>
+    <div className="container mx-auto p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Financial Reports</h1>
+        <p className="text-gray-600">Generate and view your financial reports</p>
       </div>
 
-      <Card>
+      {/* Report Dates Section */}
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle>Report Dates</CardTitle>
+          <CardDescription>Select the date range for your reports</CardDescription>
         </CardHeader>
         <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-                              <Label className={isFullYear() ? "font-bold" : ""}>Year</Label>
-                <Select value={selectedYear.toString()} onValueChange={(value) => handleYearChange(parseInt(value))}>
-                  <SelectTrigger style={isFullYear() ? { fontWeight: 'bold', border: '2px solid #6b7280' } : {}}>
-                  <SelectValue />
-                </SelectTrigger>
-                                  <SelectContent>
-                    {getYearOptions().map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-                              <Label className={isFullMonth() && !isFullYear() ? "font-bold" : ""}>Month</Label>
-                <Select value={selectedMonth.toString()} onValueChange={(value) => handleMonthChange(parseInt(value))}>
-                  <SelectTrigger style={isFullMonth() && !isFullYear() ? { fontWeight: 'bold', border: '2px solid #6b7280' } : {}}>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="year">Year</Label>
+              <Select value={selectedYear.toString()} onValueChange={(value) => handleYearChange(parseInt(value))}>
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">January</SelectItem>
-                  <SelectItem value="1">February</SelectItem>
-                  <SelectItem value="2">March</SelectItem>
-                  <SelectItem value="3">April</SelectItem>
-                  <SelectItem value="4">May</SelectItem>
-                  <SelectItem value="5">June</SelectItem>
-                  <SelectItem value="6">July</SelectItem>
-                  <SelectItem value="7">August</SelectItem>
-                  <SelectItem value="8">September</SelectItem>
-                  <SelectItem value="9">October</SelectItem>
-                  <SelectItem value="10">November</SelectItem>
-                  <SelectItem value="11">December</SelectItem>
+                  {getYearOptions().map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {isFullYear() && (
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    Full Year Selected
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label className={isFullYear() || isFullMonth() || (!isFullYear() && !isFullMonth()) ? "font-bold" : ""}>From Date</Label>
+            <div>
+              <Label htmlFor="month">Month</Label>
+              <Select value={selectedMonth.toString()} onValueChange={(value) => handleMonthChange(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">January</SelectItem>
+                  <SelectItem value="2">February</SelectItem>
+                  <SelectItem value="3">March</SelectItem>
+                  <SelectItem value="4">April</SelectItem>
+                  <SelectItem value="5">May</SelectItem>
+                  <SelectItem value="6">June</SelectItem>
+                  <SelectItem value="7">July</SelectItem>
+                  <SelectItem value="8">August</SelectItem>
+                  <SelectItem value="9">September</SelectItem>
+                  <SelectItem value="10">October</SelectItem>
+                  <SelectItem value="11">November</SelectItem>
+                  <SelectItem value="12">December</SelectItem>
+                </SelectContent>
+              </Select>
+              {isFullMonth() && (
+                <div className="mt-1">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    Full Month Selected
+                  </span>
+                </div>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="fromDate">From Date</Label>
               <Input
+                id="fromDate"
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                style={isFullYear() || isFullMonth() || (!isFullYear() && !isFullMonth()) ? { fontWeight: 'bold', border: '2px solid #6b7280' } : {}}
+                className={isFullYear() || isFullMonth() ? 'font-bold border-gray-300' : 'border-gray-300'}
               />
             </div>
-            <div className="space-y-2">
-              <Label className={isFullYear() || isFullMonth() || (!isFullYear() && !isFullMonth()) ? "font-bold" : ""}>To Date</Label>
+            <div>
+              <Label htmlFor="toDate">To Date</Label>
               <Input
+                id="toDate"
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                style={isFullYear() || isFullMonth() || (!isFullYear() && !isFullMonth()) ? { fontWeight: 'bold', border: '2px solid #6b7280' } : {}}
+                className={isFullYear() || isFullMonth() ? 'font-bold border-gray-300' : 'border-gray-300'}
               />
             </div>
           </div>
+          {!isFullYear() && !isFullMonth() && (
+            <div className="mt-2">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                Custom Range
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="profit-loss" className="space-y-4">
-        <div className="flex justify-between items-center">
-          <TabsList>
-            <TabsTrigger value="profit-loss">Profit & Loss</TabsTrigger>
-            <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>
-            <TabsTrigger value="cash-flow">Cash Flow</TabsTrigger>
-            {showMoreReports && (
-              <>
-                <TabsTrigger value="general-ledger">General Ledger</TabsTrigger>
-                <TabsTrigger value="trial-balance">Trial Balance</TabsTrigger>
-              </>
-            )}
-          </TabsList>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowMoreReports(!showMoreReports)}
-            className="ml-4"
-          >
-            {showMoreReports ? 'Less Reports' : 'More Reports'}
-          </Button>
-        </div>
+      {/* Reports Tabs */}
+      <Tabs defaultValue="profit-loss" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="profit-loss">Profit & Loss</TabsTrigger>
+          <TabsTrigger value="balance-sheet">Balance Sheet</TabsTrigger>
+          <TabsTrigger value="cash-flow">Cash Flow</TabsTrigger>
+        </TabsList>
 
+        {/* Profit & Loss Statement */}
         <TabsContent value="profit-loss">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
+              <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Profit & Loss Statement
-                  </CardTitle>
+                  <CardTitle>Profit & Loss Statement</CardTitle>
                   <CardDescription>
                     {formatDate(dateFrom)} - {formatDate(dateTo)}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportProfitLossPDF} 
-                    disabled={pdfGenerating}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    {pdfGenerating ? 'Generating...' : 'Download PDF'}
-                  </Button>
-                  {isFullYear() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Full Year
-                    </div>
-                  )}
-                  {isFullMonth() && !isFullYear() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Full Month
-                    </div>
-                  )}
-                  {!isFullYear() && !isFullMonth() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Custom Range
-                    </div>
-                  )}
-                </div>
+                <Button 
+                  onClick={handleExportProfitLossPDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  disabled={pdfGenerating}
+                >
+                  <Download className="h-4 w-4" />
+                  {pdfGenerating ? 'Generating...' : 'Download PDF'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {/* Revenue Section */}
+                {/* Revenue */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Revenue</h3>
-                  <Table>
-                    <TableBody>
-                      {Object.entries(reportData.profitLoss.revenue).map(([category, amount]) => (
-                        <TableRow key={category}>
-                          <TableCell>{category}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-semibold">Total Revenue</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(reportData.profitLoss.totalRevenue)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  {reportData.profitLoss.revenue.map((item) => (
+                    <div key={item.accountName} className="flex justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span>{item.accountName}</span>
+                      </span>
+                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Revenue</span>
+                      <span>{formatCurrency(reportData.profitLoss.totalRevenue)}</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Cost of Goods Sold Section */}
-                {Object.keys(reportData.profitLoss.costOfGoodsSold).length > 0 && (
+                {/* Cost of Goods Sold */}
+                {reportData.profitLoss.costOfGoodsSold.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Cost of Goods Sold</h3>
-                    <Table>
-                      <TableBody>
-                        {Object.entries(reportData.profitLoss.costOfGoodsSold).map(([category, amount]) => (
-                          <TableRow key={category}>
-                            <TableCell>{category}</TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t-2">
-                          <TableCell className="font-semibold">Total Cost of Goods Sold</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(reportData.profitLoss.totalCostOfGoodsSold)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                    {reportData.profitLoss.costOfGoodsSold.map((item) => (
+                      <div key={item.accountName} className="flex justify-between py-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span>{item.accountName}</span>
+                        </span>
+                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Cost of Goods Sold</span>
+                        <span>{formatCurrency(reportData.profitLoss.totalCostOfGoodsSold)}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {/* Gross Profit */}
-                {Object.keys(reportData.profitLoss.costOfGoodsSold).length > 0 && (
-                  <div className="border-t-2 pt-4">
-                    <Table>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell className="text-lg font-bold">Gross Profit</TableCell>
-                          <TableCell className="text-right text-lg font-bold">
-                            {formatCurrency(reportData.profitLoss.grossProfit)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                <div className="border-t pt-4">
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Gross Profit</span>
+                    <span>{formatCurrency(reportData.profitLoss.grossProfit)}</span>
                   </div>
-                )}
+                </div>
 
-                {/* Operating Expenses Section */}
+                {/* Operating Expenses */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Operating Expenses</h3>
-                  <Table>
-                    <TableBody>
-                      {Object.entries(reportData.profitLoss.operatingExpenses).map(([category, amount]) => (
-                        <TableRow key={category}>
-                          <TableCell>{category}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-semibold">Total Operating Expenses</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(reportData.profitLoss.totalOperatingExpenses)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  {reportData.profitLoss.operatingExpenses.map((item) => (
+                    <div key={item.accountName} className="flex justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span>{item.accountName}</span>
+                      </span>
+                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Operating Expenses</span>
+                      <span>{formatCurrency(reportData.profitLoss.totalOperatingExpenses)}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Operating Income */}
-                <div className="border-t-2 pt-4">
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="text-lg font-bold">Operating Income</TableCell>
-                        <TableCell className="text-right text-lg font-bold">
-                          {formatCurrency(reportData.profitLoss.operatingIncome)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                <div className="border-t pt-4">
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Operating Income</span>
+                    <span>{formatCurrency(reportData.profitLoss.operatingIncome)}</span>
+                  </div>
                 </div>
 
-                {/* Other Income Section */}
-                {Object.keys(reportData.profitLoss.otherIncome).length > 0 && (
+                {/* Other Income */}
+                {reportData.profitLoss.otherIncome.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Other Income</h3>
-                    <Table>
-                      <TableBody>
-                        {Object.entries(reportData.profitLoss.otherIncome).map(([category, amount]) => (
-                          <TableRow key={category}>
-                            <TableCell>{category}</TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t-2">
-                          <TableCell className="font-semibold">Total Other Income</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(reportData.profitLoss.totalOtherIncome)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                    {reportData.profitLoss.otherIncome.map((item) => (
+                      <div key={item.accountName} className="flex justify-between py-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span>{item.accountName}</span>
+                        </span>
+                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Other Income</span>
+                        <span>{formatCurrency(reportData.profitLoss.totalOtherIncome)}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Other Expenses Section */}
-                {Object.keys(reportData.profitLoss.otherExpenses).length > 0 && (
+                {/* Other Expenses */}
+                {reportData.profitLoss.otherExpenses.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Other Expenses</h3>
-                    <Table>
-                      <TableBody>
-                        {Object.entries(reportData.profitLoss.otherExpenses).map(([category, amount]) => (
-                          <TableRow key={category}>
-                            <TableCell>{category}</TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t-2">
-                          <TableCell className="font-semibold">Total Other Expenses</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(reportData.profitLoss.totalOtherExpenses)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                    {reportData.profitLoss.otherExpenses.map((item) => (
+                      <div key={item.accountName} className="flex justify-between py-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span>{item.accountName}</span>
+                        </span>
+                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Other Expenses</span>
+                        <span>{formatCurrency(reportData.profitLoss.totalOtherExpenses)}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {/* Net Income */}
                 <div className="border-t-2 pt-4">
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="text-xl font-bold">Net Income</TableCell>
-                        <TableCell className="text-right text-xl font-bold">
-                          {formatCurrency(reportData.profitLoss.netIncome)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  <div className="flex justify-between font-bold text-xl">
+                    <span>Net Income</span>
+                    <span className={reportData.profitLoss.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {formatCurrency(reportData.profitLoss.netIncome)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Balance Sheet */}
         <TabsContent value="balance-sheet">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
+              <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Balance Sheet
-                  </CardTitle>
+                  <CardTitle>Balance Sheet</CardTitle>
                   <CardDescription>
                     As of {formatDate(dateTo)}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportBalanceSheetPDF} 
-                    disabled={pdfGenerating}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    {pdfGenerating ? 'Generating...' : 'Download PDF'}
-                  </Button>
-                  {isFullYear() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Full Year
-                    </div>
-                  )}
-                  {isFullMonth() && !isFullYear() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Full Month
-                    </div>
-                  )}
-                  {!isFullYear() && !isFullMonth() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Custom Range
-                    </div>
-                  )}
-                </div>
+                <Button 
+                  onClick={handleExportBalanceSheetPDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  disabled={pdfGenerating}
+                >
+                  <Download className="h-4 w-4" />
+                  {pdfGenerating ? 'Generating...' : 'Download PDF'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-3 gap-8">
-                {/* Assets Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Assets */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Assets</h3>
-                  <Table>
-                    <TableBody>
-                      {Object.entries(reportData.balanceSheet.assets).map(([category, amount]) => (
-                        <TableRow key={category}>
-                          <TableCell>{category}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-semibold">Total Assets</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(reportData.balanceSheet.totalAssets)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  {reportData.balanceSheet.assets.map((item) => (
+                    <div key={item.accountName} className="flex justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span>{item.accountName}</span>
+                      </span>
+                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold text-lg">
+                      <span>Total Assets</span>
+                      <span>{formatCurrency(reportData.balanceSheet.totalAssets)}</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Liabilities Section */}
+                {/* Liabilities & Equity */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Liabilities</h3>
-                  <Table>
-                    <TableBody>
-                      {Object.entries(reportData.balanceSheet.liabilities).map(([category, amount]) => (
-                        <TableRow key={category}>
-                          <TableCell>{category}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-semibold">Total Liabilities</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(reportData.balanceSheet.totalLiabilities)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                  {reportData.balanceSheet.liabilities.map((item) => (
+                    <div key={item.accountName} className="flex justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span>{item.accountName}</span>
+                      </span>
+                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Liabilities</span>
+                      <span>{formatCurrency(reportData.balanceSheet.totalLiabilities)}</span>
+                    </div>
+                  </div>
 
-                {/* Equity Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Owner&apos;s Equity</h3>
-                  <Table>
-                    <TableBody>
-                      {Object.entries(reportData.balanceSheet.equity).map(([category, amount]) => (
-                        <TableRow key={category}>
-                          <TableCell>{category}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-semibold">Total Equity</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(reportData.balanceSheet.totalEquity)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+                  <h3 className="text-lg font-semibold mb-4 mt-6">Equity</h3>
+                  {reportData.balanceSheet.equity.map((item) => (
+                    <div key={item.accountName} className="flex justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span>{item.accountName}</span>
+                      </span>
+                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total Equity</span>
+                      <span>{formatCurrency(reportData.balanceSheet.totalEquity)}</span>
+                    </div>
+                  </div>
 
-              {/* Accounting Equation Verification */}
-              <div className="mt-8 pt-4 border-t-2">
-                <Table>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="text-lg font-bold">Total Liabilities & Equity</TableCell>
-                      <TableCell className="text-right text-lg font-bold">
-                        {formatCurrency(reportData.balanceSheet.totalLiabilities + reportData.balanceSheet.totalEquity)}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                  <div className="border-t-2 pt-4 mt-4">
+                    <div className="flex justify-between font-semibold text-lg">
+                      <span>Liabilities + Equity</span>
+                      <span>{formatCurrency(reportData.balanceSheet.totalLiabilities + reportData.balanceSheet.totalEquity)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Cash Flow Statement */}
         <TabsContent value="cash-flow">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
+              <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Cash Flow Statement
-                  </CardTitle>
+                  <CardTitle>Cash Flow Statement</CardTitle>
                   <CardDescription>
                     {formatDate(dateFrom)} - {formatDate(dateTo)}
                   </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleExportCashFlowPDF} 
-                    disabled={pdfGenerating}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    {pdfGenerating ? 'Generating...' : 'Download PDF'}
-                  </Button>
-                  {isFullYear() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Full Year
-                    </div>
-                  )}
-                  {isFullMonth() && !isFullYear() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Full Month
-                    </div>
-                  )}
-                  {!isFullYear() && !isFullMonth() && (
-                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                      Custom Range
-                    </div>
-                  )}
-                </div>
+                <Button 
+                  onClick={handleExportCashFlowPDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  disabled={pdfGenerating}
+                >
+                  <Download className="h-4 w-4" />
+                  {pdfGenerating ? 'Generating...' : 'Download PDF'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-8">
-                {/* Operating Activities Section */}
+              <div className="space-y-6">
+                {/* Operating Activities */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Operating Activities</h3>
-                  <Table>
-                    <TableBody>
-                      {Object.entries(reportData.cashFlow.operatingActivities).map(([category, amount]) => (
-                        <TableRow key={category}>
-                          <TableCell>{category}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-semibold">Total Operating Activities</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(reportData.cashFlow.totalOperatingActivities)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  {reportData.cashFlow.operatingActivities.map((item) => (
+                    <div key={item.accountName} className="flex justify-between py-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span>{item.accountName}</span>
+                      </span>
+                      <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(item.amount)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between font-semibold">
+                      <span>Net Cash from Operating Activities</span>
+                      <span className={reportData.cashFlow.totalOperatingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(reportData.cashFlow.totalOperatingActivities)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Investing Activities Section */}
-                {Object.keys(reportData.cashFlow.investingActivities).length > 0 && (
+                {/* Investing Activities */}
+                {reportData.cashFlow.investingActivities.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Investing Activities</h3>
-                    <Table>
-                      <TableBody>
-                        {Object.entries(reportData.cashFlow.investingActivities).map(([category, amount]) => (
-                          <TableRow key={category}>
-                            <TableCell>{category}</TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t-2">
-                          <TableCell className="font-semibold">Total Investing Activities</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(reportData.cashFlow.totalInvestingActivities)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                    {reportData.cashFlow.investingActivities.map((item) => (
+                      <div key={item.accountName} className="flex justify-between py-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span>{item.accountName}</span>
+                        </span>
+                        <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(item.amount)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Net Cash from Investing Activities</span>
+                        <span className={reportData.cashFlow.totalInvestingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          {formatCurrency(reportData.cashFlow.totalInvestingActivities)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Financing Activities Section */}
-                {Object.keys(reportData.cashFlow.financingActivities).length > 0 && (
+                {/* Financing Activities */}
+                {reportData.cashFlow.financingActivities.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Financing Activities</h3>
-                    <Table>
-                      <TableBody>
-                        {Object.entries(reportData.cashFlow.financingActivities).map(([category, amount]) => (
-                          <TableRow key={category}>
-                            <TableCell>{category}</TableCell>
-                            <TableCell className="text-right">
-                              {formatCurrency(amount)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="border-t-2">
-                          <TableCell className="font-semibold">Total Financing Activities</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(reportData.cashFlow.totalFinancingActivities)}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                    {reportData.cashFlow.financingActivities.map((item) => (
+                      <div key={item.accountName} className="flex justify-between py-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span>{item.accountName}</span>
+                        </span>
+                        <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(item.amount)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 mt-2">
+                      <div className="flex justify-between font-semibold">
+                        <span>Net Cash from Financing Activities</span>
+                        <span className={reportData.cashFlow.totalFinancingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          {formatCurrency(reportData.cashFlow.totalFinancingActivities)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 {/* Net Cash Flow */}
                 <div className="border-t-2 pt-4">
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="text-xl font-bold">Net Cash Flow</TableCell>
-                        <TableCell className="text-right text-xl font-bold">
-                          {formatCurrency(reportData.cashFlow.netCashFlow)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  <div className="flex justify-between font-bold text-xl">
+                    <span>Net Cash Flow</span>
+                    <span className={reportData.cashFlow.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {formatCurrency(reportData.cashFlow.netCashFlow)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-
-
-
-        {showMoreReports && (
-          <>
-            <TabsContent value="general-ledger">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        General Ledger
-                      </CardTitle>
-                      <CardDescription>
-                        {formatDate(dateFrom)} - {formatDate(dateTo)}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleExportGeneralLedgerPDF} 
-                        disabled={pdfGenerating}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        {pdfGenerating ? 'Generating...' : 'Download PDF'}
-                      </Button>
-                      {isFullYear() && (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                          Full Year
-                        </div>
-                      )}
-                      {isFullMonth() && !isFullYear() && (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                          Full Month
-                        </div>
-                      )}
-                      {!isFullYear() && !isFullMonth() && (
-                        <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          <span className="w-2 h-2 bg-gray-500 rounded-full mr-1"></span>
-                          Custom Range
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    {Object.entries(reportData.generalLedger.accounts).map(([account, data]) => (
-                      <div key={account} className="border rounded-lg p-4">
-                        <h3 className="text-lg font-semibold mb-3">{account}</h3>
-                        <Table>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium">Debits</TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(data.debits)}
-                              </TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Credits</TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(data.credits)}
-                              </TableCell>
-                            </TableRow>
-                            <TableRow className="border-t-2">
-                              <TableCell className="font-bold">Balance</TableCell>
-                              <TableCell className={`text-right font-bold ${data.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {formatCurrency(data.balance)}
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ))}
-                    
-                    <div className="border-t-2 pt-4">
-                      <Table>
-                        <TableBody>
-                          <TableRow>
-                            <TableCell className="font-bold">Total Debits</TableCell>
-                            <TableCell className="text-right font-bold">
-                              {formatCurrency(reportData.generalLedger.totalDebits)}
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-bold">Total Credits</TableCell>
-                            <TableCell className="text-right font-bold">
-                              {formatCurrency(reportData.generalLedger.totalCredits)}
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="trial-balance">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Trial Balance
-                      </CardTitle>
-                      <CardDescription>
-                        As of {formatDate(dateTo)}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleExportTrialBalancePDF} 
-                        disabled={pdfGenerating}
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        {pdfGenerating ? 'Generating...' : 'Download PDF'}
-                      </Button>
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        reportData.trialBalance.isBalanced 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        <span className={`w-2 h-2 rounded-full mr-1 ${
-                          reportData.trialBalance.isBalanced ? 'bg-green-500' : 'bg-red-500'
-                        }`}></span>
-                        {reportData.trialBalance.isBalanced ? 'Balanced' : 'Not Balanced'}
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Debits</TableHead>
-                        <TableHead className="text-right">Credits</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(reportData.trialBalance.accounts).map(([account, data]) => (
-                        <TableRow key={account}>
-                          <TableCell className="font-medium">{account}</TableCell>
-                          <TableCell className="text-right">
-                            {data.balance > 0 ? formatCurrency(data.balance) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {data.balance < 0 ? formatCurrency(Math.abs(data.balance)) : '-'}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow className="border-t-2">
-                        <TableCell className="font-bold">Totals</TableCell>
-                        <TableCell className="text-right font-bold">
-                          {formatCurrency(reportData.trialBalance.totalDebits)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          {formatCurrency(reportData.trialBalance.totalCredits)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                  
-                  <div className="mt-4 p-4 rounded-lg border">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        reportData.trialBalance.isBalanced ? 'bg-green-500' : 'bg-red-500'
-                      }`}></div>
-                      <span className="font-medium">
-                        {reportData.trialBalance.isBalanced 
-                          ? '✓ Trial Balance is balanced - Debits equal Credits' 
-                          : '✗ Trial Balance is not balanced - Debits do not equal Credits'
-                        }
-                      </span>
-                    </div>
-                    {!reportData.trialBalance.isBalanced && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Difference: {formatCurrency(Math.abs(reportData.trialBalance.totalDebits - reportData.trialBalance.totalCredits))}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </>
-        )}
       </Tabs>
+
+      {/* More Reports Section */}
+      <div className="mt-8">
+        <Button
+          onClick={() => setShowMoreReports(!showMoreReports)}
+          variant="outline"
+          className="w-full"
+        >
+          {showMoreReports ? 'Less Reports' : 'More Reports'}
+        </Button>
+      </div>
+
+      {showMoreReports && (
+        <div className="mt-6 space-y-6">
+          {/* General Ledger */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>General Ledger</CardTitle>
+                  <CardDescription>
+                    {formatDate(dateFrom)} - {formatDate(dateTo)}
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={handleExportGeneralLedgerPDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  disabled={pdfGenerating}
+                >
+                  <Download className="h-4 w-4" />
+                  {pdfGenerating ? 'Generating...' : 'Download PDF'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Account</TableHead>
+                    <TableHead className="text-right">Debits</TableHead>
+                    <TableHead className="text-right">Credits</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(reportData.generalLedger.accounts).map(([account, data]) => (
+                    <TableRow key={account}>
+                      <TableCell className="font-medium">{account}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(data.debits)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(data.credits)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(data.balance)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex justify-between font-semibold">
+                  <span>Total Debits</span>
+                  <span>{formatCurrency(reportData.generalLedger.totalDebits)}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Total Credits</span>
+                  <span>{formatCurrency(reportData.generalLedger.totalCredits)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Trial Balance */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Trial Balance</CardTitle>
+                  <CardDescription>
+                    As of {formatDate(dateTo)}
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={handleExportTrialBalancePDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  disabled={pdfGenerating}
+                >
+                  <Download className="h-4 w-4" />
+                  {pdfGenerating ? 'Generating...' : 'Download PDF'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Account</TableHead>
+                    <TableHead className="text-right">Debits</TableHead>
+                    <TableHead className="text-right">Credits</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(reportData.trialBalance.accounts).map(([account, data]) => (
+                    <TableRow key={account}>
+                      <TableCell className="font-medium">{account}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(data.debits)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(data.credits)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(data.balance)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex justify-between font-semibold">
+                  <span>Total Debits</span>
+                  <span>{formatCurrency(reportData.trialBalance.totalDebits)}</span>
+                </div>
+                <div className="flex justify-between font-semibold">
+                  <span>Total Credits</span>
+                  <span>{formatCurrency(reportData.trialBalance.totalCredits)}</span>
+                </div>
+                <div className="flex justify-between font-semibold mt-2">
+                  <span>Balanced</span>
+                  <span className={reportData.trialBalance.isBalanced ? 'text-green-600' : 'text-red-600'}>
+                    {reportData.trialBalance.isBalanced ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

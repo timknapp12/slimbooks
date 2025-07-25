@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Company {
@@ -38,7 +38,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const supabase = createClient()
 
-  const fetchUserCompanies = async () => {
+  const fetchUserCompanies = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -82,27 +82,27 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       console.error('Error in fetchUserCompanies:', error)
       setLoading(false)
     }
-  }
+  }, [supabase])
 
-  const refreshCompanies = async () => {
+  const refreshCompanies = useCallback(async () => {
     setIsRefreshing(true)
     try {
       await fetchUserCompanies()
     } finally {
       setIsRefreshing(false)
     }
-  }
+  }, [fetchUserCompanies])
 
-  const setCurrentCompanyWithRefresh = (company: Company) => {
+  const setCurrentCompanyWithRefresh = useCallback((company: Company) => {
     setIsRefreshing(true)
     setCurrentCompany(company)
     // Clear refresh state after a short delay to allow data to load
     setTimeout(() => setIsRefreshing(false), 1000)
-  }
+  }, [])
 
   useEffect(() => {
     fetchUserCompanies()
-  }, [])
+  }, [fetchUserCompanies])
 
   const value: CompanyContextType = {
     currentCompany,

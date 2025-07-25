@@ -22,16 +22,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's company and subscription info
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    // Get user's default company
+    const { data: userCompany, error: userError } = await supabase
+      .from('user_companies')
       .select('company_id')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
+      .eq('is_default', true)
       .single()
 
-    if (userError || !userData?.company_id) {
+    if (userError || !userCompany?.company_id) {
       return NextResponse.json(
-        { error: 'User company not found' },
+        { error: 'No default company found' },
         { status: 404 }
       )
     }
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data: subscriptionData, error: subscriptionError } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
-      .eq('company_id', userData.company_id)
+      .eq('company_id', userCompany.company_id)
       .single()
 
     if (subscriptionError || !subscriptionData?.stripe_customer_id) {
