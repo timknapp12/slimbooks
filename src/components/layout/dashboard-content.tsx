@@ -22,25 +22,27 @@ export function DashboardContent({ children }: DashboardContentProps) {
   const router = useRouter()
   
   return (
-    <div className="flex h-screen bg-background">
+    <div className="grid grid-cols-[4rem_1fr] sm:grid-cols-[16rem_1fr] h-screen bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-background">
+      <main className="grid grid-rows-[auto_1fr] overflow-hidden bg-background">
         {/* Header with Company Name */}
         {currentCompany && (
           <header className="border-b bg-card">
-            <div className="px-8 py-4">
+            <div className="px-4 sm:px-6 lg:px-8 py-4">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="h-auto p-0 text-2xl font-bold text-foreground hover:bg-transparent"
+                        className="h-auto p-0 text-xl sm:text-2xl font-bold text-foreground hover:bg-transparent truncate"
                         disabled={isRefreshing}
                       >
-                        <span className="flex items-center">
-                          {isRefreshing ? 'Loading...' : currentCompany.name}
-                          <ChevronDown className="ml-2 h-5 w-5" />
+                        <span className="flex items-center min-w-0">
+                          <span className="truncate">
+                            {isRefreshing ? 'Loading...' : currentCompany.name}
+                          </span>
+                          <ChevronDown className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
@@ -51,8 +53,8 @@ export function DashboardContent({ children }: DashboardContentProps) {
                           onClick={() => setCurrentCompany(userCompany.company)}
                           className="cursor-pointer"
                         >
-                          <div>
-                            <div className="font-medium">{userCompany.company.name}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{userCompany.company.name}</div>
                             <div className="text-sm text-muted-foreground truncate">
                               {userCompany.company.address}
                             </div>
@@ -64,27 +66,31 @@ export function DashboardContent({ children }: DashboardContentProps) {
                         onClick={() => router.push('/settings?tab=companies&addCompany=true')}
                         className="cursor-pointer"
                       >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4 flex-shrink-0" />
                         <span>Add Company</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {currentCompany.address}
-                  </p>
+                  {currentCompany.address && (
+                    <p className="text-sm text-muted-foreground mt-1 truncate">
+                      {currentCompany.address}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           </header>
         )}
         
-        <div className="p-8" key={currentCompany?.id || 'no-company'}>
-          {isRefreshing && (
-            <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md shadow-lg">
-              Loading company data...
-            </div>
-          )}
-          {children}
+        <div className="overflow-y-auto">
+          <div className="p-4 sm:p-6 lg:p-8" key={currentCompany?.id || 'no-company'}>
+            {isRefreshing && (
+              <div className="fixed top-4 right-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-md shadow-lg">
+                Loading company data...
+              </div>
+            )}
+            {children}
+          </div>
         </div>
       </main>
     </div>
