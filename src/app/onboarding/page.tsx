@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 import { useRouter } from 'next/navigation'
@@ -8,23 +11,42 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { FormWrapper } from '@/components/form-wrapper'
+import { AddressForm } from '@/components/address-form'
+import { EINInput } from '@/components/ein-input'
+import { optionalAddressSchema, einSchema } from '@/lib/address-validation'
+
+// Form schema
+const onboardingSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  ein: einSchema,
+  address: optionalAddressSchema
+})
+
+type OnboardingFormData = z.infer<typeof onboardingSchema>
 
 export default function OnboardingPage() {
-  const [companyName, setCompanyName] = useState('')
-  const [ein, setEin] = useState('')
-  const [address, setAddress] = useState('')
-  // Default to cash basis accounting
-  const accountingMethod = 'cash'
-  const [loading, setLoading] = useState(false)
   const [emailVerified, setEmailVerified] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
+
+  const form = useForm<OnboardingFormData>({
+    resolver: zodResolver(onboardingSchema),
+    defaultValues: {
+      companyName: '',
+      ein: '',
+      address: {
+        streetAddress: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      }
+    }
+  })
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -47,10 +69,7 @@ export default function OnboardingPage() {
     checkAuth()
   }, [supabase, router])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
+  const handleSubmit = async (data: OnboardingFormData) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -66,7 +85,6 @@ export default function OnboardingPage() {
           description: 'Please verify your email address before setting up your company.',
           variant: 'destructive',
         })
-        setLoading(false)
         return
       }
 
@@ -77,10 +95,13 @@ export default function OnboardingPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          companyName,
-          ein,
-          address,
-          accountingMethod,
+          companyName: data.companyName,
+          ein: data.ein,
+          streetAddress: data.address.streetAddress,
+          city: data.address.city,
+          state: data.address.state,
+          zipCode: data.address.zipCode,
+          accountingMethod: 'cash',
         }),
         credentials: 'include',
       })
@@ -104,8 +125,6 @@ export default function OnboardingPage() {
         description: errorMessage,
         variant: 'destructive',
       })
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -149,37 +168,39 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent>
           <FormWrapper>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="companyName">Company Name *</Label>
                 <Input
                   id="companyName"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  required
+                  {...form.register('companyName')}
                 />
+                {form.formState.errors.companyName && (
+                  <p className="text-sm text-red-500">{form.formState.errors.companyName.message}</p>
+                )}
               </div>
+              
+              <EINInput
+                control={form.control}
+                name="ein"
+                id="ein"
+              />
+
               <div className="space-y-2">
-                <Label htmlFor="ein">EIN (Employer Identification Number)</Label>
-                <Input
-                  id="ein"
-                  value={ein}
-                  onChange={(e) => setEin(e.target.value)}
-                  placeholder="XX-XXXXXXX"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Business Address</Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="123 Main St, City, State, ZIP"
+                <Label className="text-base font-medium">Business Address (Optional)</Label>
+                <AddressForm
+                  control={form.control}
+                  namePrefix="address"
+                  required={false}
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating...' : 'Complete Setup'}
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={form.formState.isSubmitting}
+              >
+                {form.formState.isSubmitting ? 'Creating...' : 'Complete Setup'}
               </Button>
             </form>
           </FormWrapper>

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { companyName, ein, address, accountingMethod } = await request.json()
+    const { companyName, ein, streetAddress, city, state, zipCode, accountingMethod } = await request.json()
 
     // Wait for user to be created in our users table (with retry)
     let existingUser = null
@@ -90,7 +90,10 @@ export async function POST(request: NextRequest) {
       .from('companies')
       .insert({
         name: companyName,
-        address: address || null,
+        street_address: streetAddress || null,
+        city: city || null,
+        state: state || null,
+        zip_code: zipCode || null,
         ein: ein || null,
         accounting_method: accountingMethod
       })
