@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Building2, Users, CreditCard, Plus, Edit2, Check, X } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import ChartOfAccounts from '@/components/chart-of-accounts'
+import { SimpleEIN } from '@/components/ein-input'
 
 
 
@@ -50,6 +51,10 @@ function SettingsPageContent() {
     ein: '',
     accounting_method: 'cash' as 'cash' | 'accrual'
   })
+
+  // Validation state
+  const [editingEinValid, setEditingEinValid] = useState(true)
+  const [newCompanyEinValid, setNewCompanyEinValid] = useState(true)
 
   const fetchData = useCallback(async () => {
     if (!currentCompany) return
@@ -377,12 +382,11 @@ function SettingsPageContent() {
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`edit-company-ein-${userCompany.company_id}`}>EIN</Label>
-                            <Input
+                            <SimpleEIN
                               id={`edit-company-ein-${userCompany.company_id}`}
                               value={editingCompanyForm.ein}
-                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, ein: e.target.value })}
-                              placeholder="XX-XXXXXXX"
+                              onValueChangeAction={(value) => setEditingCompanyForm({ ...editingCompanyForm, ein: value })}
+                              onValidationChange={setEditingEinValid}
                             />
                           </div>
                         </div>
@@ -413,7 +417,11 @@ function SettingsPageContent() {
                           </Select>
                         </div>
                         <div className="flex gap-2">
-                          <Button onClick={handleSaveEditCompany} size="sm">
+                          <Button 
+                            onClick={handleSaveEditCompany} 
+                            size="sm"
+                            disabled={!editingEinValid}
+                          >
                             <Check className="mr-2 h-4 w-4" />
                             Save
                           </Button>
@@ -539,16 +547,19 @@ function SettingsPageContent() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="newCompanyEin">EIN</Label>
-                          <Input
+                          <SimpleEIN
                             id="newCompanyEin"
                             value={newCompanyForm.ein}
-                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, ein: e.target.value })}
-                            placeholder="XX-XXXXXXX"
+                            onValueChangeAction={(value) => setNewCompanyForm({ ...newCompanyForm, ein: value })}
+                            onValidationChange={setNewCompanyEinValid}
                           />
                         </div>
                         <div className="flex gap-2">
-                          <Button type="submit" size="sm">
+                          <Button 
+                            type="submit" 
+                            size="sm"
+                            disabled={!newCompanyEinValid}
+                          >
                             Create Company
                           </Button>
                           <Button 
