@@ -16,6 +16,7 @@ import { Building2, Users, CreditCard, Plus, Edit2, Check, X } from 'lucide-reac
 import { useCompany } from '@/contexts/CompanyContext'
 import ChartOfAccounts from '@/components/chart-of-accounts'
 import { SimpleEIN } from '@/components/ein-input'
+import { US_STATES } from '@/lib/us-states'
 
 
 
@@ -35,7 +36,10 @@ function SettingsPageContent() {
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
   const [editingCompanyForm, setEditingCompanyForm] = useState({
     name: '',
-    address: '',
+    street_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
     ein: '',
     accounting_method: 'cash' as 'cash' | 'accrual'
   })
@@ -47,7 +51,10 @@ function SettingsPageContent() {
   // Form state for new company
   const [newCompanyForm, setNewCompanyForm] = useState({
     name: '',
-    address: '',
+    street_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
     ein: '',
     accounting_method: 'cash' as 'cash' | 'accrual'
   })
@@ -272,11 +279,15 @@ function SettingsPageContent() {
     }
   }
 
-  const handleStartEditCompany = (userCompany: { company_id: string; company: { name: string; address: string; ein: string; accounting_method: 'cash' | 'accrual' } }) => {
+  const handleStartEditCompany = (userCompany: { company_id: string; company: { name: string; street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null; ein: string; accounting_method: 'cash' | 'accrual' } }) => {
     setEditingCompanyId(userCompany.company_id)
+    
     setEditingCompanyForm({
       name: userCompany.company.name || '',
-      address: userCompany.company.address || '',
+      street_address: userCompany.company.street_address || '',
+      city: userCompany.company.city || '',
+      state: userCompany.company.state || '',
+      zip_code: userCompany.company.zip_code || '',
       ein: userCompany.company.ein || '',
       accounting_method: userCompany.company.accounting_method || 'cash'
     })
@@ -286,7 +297,10 @@ function SettingsPageContent() {
     setEditingCompanyId(null)
     setEditingCompanyForm({
       name: '',
-      address: '',
+      street_address: '',
+      city: '',
+      state: '',
+      zip_code: '',
       ein: '',
       accounting_method: 'cash'
     })
@@ -300,7 +314,10 @@ function SettingsPageContent() {
         .from('companies')
         .update({
           name: editingCompanyForm.name,
-          address: editingCompanyForm.address,
+          street_address: editingCompanyForm.street_address || null,
+          city: editingCompanyForm.city || null,
+          state: editingCompanyForm.state || null,
+          zip_code: editingCompanyForm.zip_code || null,
           ein: editingCompanyForm.ein,
           accounting_method: editingCompanyForm.accounting_method
         })
@@ -316,7 +333,10 @@ function SettingsPageContent() {
       setEditingCompanyId(null)
       setEditingCompanyForm({
         name: '',
-        address: '',
+        street_address: '',
+        city: '',
+        state: '',
+        zip_code: '',
         ein: '',
         accounting_method: 'cash'
       })
@@ -390,14 +410,53 @@ function SettingsPageContent() {
                             />
                           </div>
                         </div>
-                        <div>
-                          <Label htmlFor={`edit-company-address-${userCompany.company_id}`}>Business Address</Label>
-                          <Input
-                            id={`edit-company-address-${userCompany.company_id}`}
-                            value={editingCompanyForm.address}
-                            onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, address: e.target.value })}
-                            placeholder="123 Main St, City, State, ZIP"
-                          />
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor={`edit-company-street-${userCompany.company_id}`}>Street Address</Label>
+                            <Input
+                              id={`edit-company-street-${userCompany.company_id}`}
+                              value={editingCompanyForm.street_address}
+                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, street_address: e.target.value })}
+                              placeholder="123 Main St"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor={`edit-company-city-${userCompany.company_id}`}>City</Label>
+                              <Input
+                                id={`edit-company-city-${userCompany.company_id}`}
+                                value={editingCompanyForm.city}
+                                onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, city: e.target.value })}
+                                placeholder="San Francisco"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`edit-company-state-${userCompany.company_id}`}>State</Label>
+                              <Select
+                                value={editingCompanyForm.state}
+                                onValueChange={(value) => setEditingCompanyForm({ ...editingCompanyForm, state: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select state" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {US_STATES.map((state) => (
+                                    <SelectItem key={state.code} value={state.code}>
+                                      {state.name} ({state.code})
+                                    </SelectItem>
+                                  ))}                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor={`edit-company-zip-${userCompany.company_id}`}>ZIP Code</Label>
+                              <Input
+                                id={`edit-company-zip-${userCompany.company_id}`}
+                                value={editingCompanyForm.zip_code}
+                                onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, zip_code: e.target.value })}
+                                placeholder="12345"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <Label htmlFor={`edit-company-accounting-${userCompany.company_id}`}>Accounting Method</Label>
@@ -410,10 +469,13 @@ function SettingsPageContent() {
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="cash">Cash Basis</SelectItem>
-                              <SelectItem value="accrual">Accrual Basis</SelectItem>
-                            </SelectContent>
+                                <SelectContent>
+                                  {US_STATES.map((state) => (
+                                    <SelectItem key={state.code} value={state.code}>
+                                      {state.name} ({state.code})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
                           </Select>
                         </div>
                         <div className="flex gap-2">
@@ -503,10 +565,34 @@ function SettingsPageContent() {
                         const { error: functionError } = await supabase
                           .rpc('create_company_with_user_auth', {
                             company_name: newCompanyForm.name,
-                            company_address: newCompanyForm.address || null,
+                            company_address: null,
                             company_ein: newCompanyForm.ein || null,
                             company_accounting_method: newCompanyForm.accounting_method
                           })
+
+                        // If company was created successfully, update with separate address fields
+                        if (!functionError) {
+                          // Get the newly created company to update it with separate address fields
+                          const { data: newCompany } = await supabase
+                            .from('companies')
+                            .select('id')
+                            .eq('name', newCompanyForm.name)
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .single()
+
+                          if (newCompany) {
+                            await supabase
+                              .from('companies')
+                              .update({
+                                street_address: newCompanyForm.street_address || null,
+                                city: newCompanyForm.city || null,
+                                state: newCompanyForm.state || null,
+                                zip_code: newCompanyForm.zip_code || null
+                              })
+                              .eq('id', newCompany.id)
+                          }
+                        }
 
                         if (functionError) throw functionError
 
@@ -516,7 +602,7 @@ function SettingsPageContent() {
                         })
 
                         setShowAddCompany(false)
-                        setNewCompanyForm({ name: '', address: '', ein: '', accounting_method: 'cash' })
+                        setNewCompanyForm({ name: '', street_address: '', city: '', state: '', zip_code: '', ein: '', accounting_method: 'cash' })
                         await refreshCompanies()
                       } catch (error) {
                         console.error('Company creation error:', error)
@@ -537,14 +623,53 @@ function SettingsPageContent() {
                             required
                           />
                         </div>
-                        <div>
-                          <Label htmlFor="newCompanyAddress">Business Address</Label>
-                          <Input
-                            id="newCompanyAddress"
-                            value={newCompanyForm.address}
-                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, address: e.target.value })}
-                            placeholder="123 Main St, City, State, ZIP"
-                          />
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="newCompanyStreet">Street Address</Label>
+                            <Input
+                              id="newCompanyStreet"
+                              value={newCompanyForm.street_address}
+                              onChange={(e) => setNewCompanyForm({ ...newCompanyForm, street_address: e.target.value })}
+                              placeholder="123 Main St"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor="newCompanyCity">City</Label>
+                              <Input
+                                id="newCompanyCity"
+                                value={newCompanyForm.city}
+                                onChange={(e) => setNewCompanyForm({ ...newCompanyForm, city: e.target.value })}
+                                placeholder="San Francisco"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="newCompanyState">State</Label>
+                              <Select
+                                value={newCompanyForm.state}
+                                onValueChange={(value) => setNewCompanyForm({ ...newCompanyForm, state: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select state" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {US_STATES.map((state) => (
+                                    <SelectItem key={state.code} value={state.code}>
+                                      {state.name} ({state.code})
+                                    </SelectItem>
+                                  ))}                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="newCompanyZip">ZIP Code</Label>
+                              <Input
+                                id="newCompanyZip"
+                                value={newCompanyForm.zip_code}
+                                onChange={(e) => setNewCompanyForm({ ...newCompanyForm, zip_code: e.target.value })}
+                                placeholder="12345"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <SimpleEIN

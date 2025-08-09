@@ -33,7 +33,10 @@ export async function GET() {
         companies (
           id,
           name,
-          address,
+          street_address,
+          city,
+          state,
+          zip_code,
           ein,
           accounting_method
         )

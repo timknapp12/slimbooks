@@ -6,7 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 interface Company {
   id: string
   name: string
-  address: string
+  street_address: string | null
+  city: string | null
+  state: string | null
+  zip_code: string | null
   ein: string
   accounting_method: 'cash' | 'accrual'
 }
