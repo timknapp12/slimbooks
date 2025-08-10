@@ -18,6 +18,7 @@ interface EINInputProps<T extends FieldValues> {
   disabled?: boolean;
   className?: string;
   id?: string;
+  nextInputId?: string; // ID of the next input to focus after completing EIN
 }
 
 export function EINInput<T extends FieldValues>({
@@ -28,6 +29,7 @@ export function EINInput<T extends FieldValues>({
   disabled = false,
   className = '',
   id,
+  nextInputId,
 }: EINInputProps<T>) {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const secondInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +79,14 @@ export function EINInput<T extends FieldValues>({
     const value = e.target.value.substring(0, 7);
     const newEIN = first + (value ? `-${value}` : '');
     field.onChange(newEIN);
+
+    // Auto-focus to next input when second input has 7 digits and they're all numbers
+    if (value.length === 7 && /^\d{7}$/.test(value) && nextInputId) {
+      const nextInput = document.getElementById(nextInputId);
+      if (nextInput && nextInput instanceof HTMLInputElement) {
+        nextInput.focus();
+      }
+    }
   };
 
   const handleFirstKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -161,6 +171,7 @@ interface SimpleEINProps {
   id?: string;
   error?: string;
   onValidationChange?: (isValid: boolean) => void;
+  nextInputId?: string; // ID of the next input to focus after completing EIN
 }
 
 export function SimpleEIN({
@@ -173,6 +184,7 @@ export function SimpleEIN({
   id,
   error,
   onValidationChange,
+  nextInputId,
 }: SimpleEINProps) {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const secondInputRef = useRef<HTMLInputElement>(null);
@@ -267,6 +279,14 @@ export function SimpleEIN({
     const newValue = e.target.value.substring(0, 7);
     const newEIN = first + (newValue ? `-${newValue}` : '');
     onValueChangeAction(newEIN);
+
+    // Auto-focus to next input when second input has 7 digits and they're all numbers
+    if (newValue.length === 7 && /^\d{7}$/.test(newValue) && nextInputId) {
+      const nextInput = document.getElementById(nextInputId);
+      if (nextInput && nextInput instanceof HTMLInputElement) {
+        nextInput.focus();
+      }
+    }
   };
 
   const handleFirstKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

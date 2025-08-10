@@ -184,6 +184,7 @@ export default function OnboardingPage() {
                 control={form.control}
                 name="ein"
                 id="ein"
+                nextInputId="address-street-address"
               />
 
               <div className="space-y-2">
