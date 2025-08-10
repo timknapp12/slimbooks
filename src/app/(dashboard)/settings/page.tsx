@@ -392,25 +392,23 @@ function SettingsPageContent() {
                     {editingCompanyId === userCompany.company_id ? (
                       // Edit mode
                       <div className="flex-1 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`edit-company-name-${userCompany.company_id}`}>Company Name *</Label>
-                            <Input
-                              id={`edit-company-name-${userCompany.company_id}`}
-                              value={editingCompanyForm.name}
-                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, name: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <SimpleEIN
-                              id={`edit-company-ein-${userCompany.company_id}`}
-                              value={editingCompanyForm.ein}
-                              onValueChangeAction={(value) => setEditingCompanyForm({ ...editingCompanyForm, ein: value })}
-                              onValidationChange={setEditingEinValid}
-                              nextInputId={`edit-company-street-${userCompany.company_id}`}
-                            />
-                          </div>
+                        <div>
+                          <Label htmlFor={`edit-company-name-${userCompany.company_id}`}>Company Name *</Label>
+                          <Input
+                            id={`edit-company-name-${userCompany.company_id}`}
+                            value={editingCompanyForm.name}
+                            onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, name: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <SimpleEIN
+                            id={`edit-company-ein-${userCompany.company_id}`}
+                            value={editingCompanyForm.ein}
+                            onValueChangeAction={(value) => setEditingCompanyForm({ ...editingCompanyForm, ein: value })}
+                            onValidationChange={setEditingEinValid}
+                            nextInputId={`edit-company-street-${userCompany.company_id}`}
+                          />
                         </div>
                         <div className="space-y-4">
                           <div>
@@ -990,6 +988,15 @@ function SettingsPageContent() {
                             required
                           />
                         </div>
+                        <div>
+                          <SimpleEIN
+                            id="newCompanyEin"
+                            value={newCompanyForm.ein}
+                            onValueChangeAction={(value) => setNewCompanyForm({ ...newCompanyForm, ein: value })}
+                            onValidationChange={setNewCompanyEinValid}
+                            nextInputId="newCompanyStreet"
+                          />
+                        </div>
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="newCompanyStreet">Street Address</Label>
@@ -1037,15 +1044,6 @@ function SettingsPageContent() {
                               />
                             </div>
                           </div>
-                        </div>
-                        <div>
-                          <SimpleEIN
-                            id="newCompanyEin"
-                            value={newCompanyForm.ein}
-                            onValueChangeAction={(value) => setNewCompanyForm({ ...newCompanyForm, ein: value })}
-                            onValidationChange={setNewCompanyEinValid}
-                            nextInputId="newCompanyStreet"
-                          />
                         </div>
                         <div className="flex gap-2">
                           <Button 
