@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Building2, Users, CreditCard, Plus, Edit2, Check, X } from 'lucide-react'
+import { Building2, Users, CreditCard, Plus, Edit2, Check, X, Eye } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import ChartOfAccounts from '@/components/chart-of-accounts'
 import { SimpleEIN } from '@/components/ein-input'
@@ -34,6 +34,7 @@ function SettingsPageContent() {
   const [priceId, setPriceId] = useState<string | null>(null)
   const [showAddCompany, setShowAddCompany] = useState(false)
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
+  const [viewingCompanyId, setViewingCompanyId] = useState<string | null>(null)
   const [editingCompanyForm, setEditingCompanyForm] = useState({
     name: '',
     street_address: '',
@@ -306,6 +307,24 @@ function SettingsPageContent() {
     })
   }
 
+  const handleViewCompany = (companyId: string) => {
+    setViewingCompanyId(companyId)
+  }
+
+  const handleCloseViewCompany = () => {
+    setViewingCompanyId(null)
+  }
+
+  const formatAddress = (company: { street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null }) => {
+    const parts = [
+      company.street_address,
+      company.city,
+      company.state && company.zip_code ? `${company.state} ${company.zip_code}` : company.state || company.zip_code
+    ].filter(Boolean)
+    
+    return parts.length > 0 ? parts.join(', ') : 'No address provided'
+  }
+
   const handleSaveEditCompany = async () => {
     if (!editingCompanyId) return
 
@@ -387,7 +406,7 @@ function SettingsPageContent() {
             <CardContent>
               <div className="space-y-4">
                 {userCompanies.map((userCompany) => (
-                  <div key={userCompany.company_id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={userCompany.company_id} className="p-4 border rounded-lg">
                     {editingCompanyId === userCompany.company_id ? (
                       // Edit mode
                       <div className="flex-1 space-y-4">
@@ -488,9 +507,57 @@ function SettingsPageContent() {
                           </Button>
                         </div>
                       </div>
+                    ) : viewingCompanyId === userCompany.company_id ? (
+                      // View mode - detailed view
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-lg">{userCompany.company.name}</h4>
+                          <Button onClick={handleCloseViewCompany} variant="ghost" size="sm">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">EIN</Label>
+                            <p className="text-sm">{userCompany.company.ein || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Accounting Method</Label>
+                            <p className="text-sm capitalize">{userCompany.company.accounting_method}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Address</Label>
+                          <p className="text-sm">{formatAddress(userCompany.company)}</p>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="flex gap-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              userCompany.role === 'admin' 
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-secondary text-secondary-foreground'
+                            }`}>
+                              {userCompany.role === 'admin' ? 'Admin' : 'Staff'}
+                            </span>
+                            {userCompany.is_default && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => handleStartEditCompany(userCompany)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
-                      // View mode
-                      <>
+                      // Summary mode
+                      <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{userCompany.company.name}</p>
                           <p className="text-sm text-muted-foreground">
@@ -499,6 +566,13 @@ function SettingsPageContent() {
                           </p>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleViewCompany(userCompany.company_id)}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             onClick={() => handleStartEditCompany(userCompany)}
                             variant="ghost"
@@ -519,7 +593,7 @@ function SettingsPageContent() {
                             </span>
                           )}
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 ))}
