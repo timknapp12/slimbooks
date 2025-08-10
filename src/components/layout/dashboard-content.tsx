@@ -54,7 +54,7 @@ export function DashboardContent({ children }: DashboardContentProps) {
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuContent align="start" className="w-auto max-w-none sm:max-w-sm">
                       {userCompanies.map((userCompany) => (
                         <DropdownMenuItem
                           key={userCompany.company_id}
@@ -63,7 +63,7 @@ export function DashboardContent({ children }: DashboardContentProps) {
                         >
                           <div>
                             <div className="font-medium">{userCompany.company.name}</div>
-                            <div className="text-sm text-muted-foreground truncate">
+                            <div className="text-sm text-muted-foreground whitespace-nowrap sm:whitespace-normal">
                               {formatAddress(userCompany.company)}
                             </div>
                           </div>
