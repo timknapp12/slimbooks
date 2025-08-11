@@ -5,7 +5,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE companies (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     name TEXT NOT NULL,
-    address TEXT,
+    street_address TEXT,
+    city TEXT,
+    state TEXT,
+    zip_code TEXT,
     ein TEXT,
     accounting_method TEXT CHECK (accounting_method IN ('cash', 'accrual')) DEFAULT 'cash',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -1074,3 +1077,10 @@ GRANT EXECUTE ON FUNCTION manage_soft_delete_limit TO authenticated;
 GRANT EXECUTE ON FUNCTION create_default_chart_of_accounts TO authenticated;
 GRANT ALL ON journal_entries TO authenticated;
 GRANT ALL ON transaction_entries TO authenticated;
+
+-- Add comments to document the address fields
+COMMENT ON COLUMN companies.address IS 'Legacy single address field (kept for backward compatibility)';
+COMMENT ON COLUMN companies.street_address IS 'Street address (e.g., 123 Main St)';
+COMMENT ON COLUMN companies.city IS 'City name';
+COMMENT ON COLUMN companies.state IS 'State or province';
+COMMENT ON COLUMN companies.zip_code IS 'ZIP or postal code';

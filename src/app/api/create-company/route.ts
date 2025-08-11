@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Creating company manually...');
 
-    // Create company manually instead of using RPC function
+    // Create company manually
     const { data: company, error: companyError } = await serviceSupabase
       .from('companies')
       .insert({
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         company_id: company.id,
         role: 'admin',
-        is_default: true
+        is_default: false // Settings page companies are not default
       })
       .select()
       .single()
@@ -508,32 +508,12 @@ export async function POST(request: NextRequest) {
 
     console.log('Chart of accounts created successfully:', chartAccounts?.length, 'accounts');
 
-    // Company details are already available from the creation step
-
-
-
-    // Get the user data
-    const { data: userData, error: userError } = await serviceSupabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (userError) {
-      console.error('User fetch error:', userError)
-      return NextResponse.json(
-        { error: 'Failed to fetch user profile', details: userError.message },
-        { status: 500 }
-      )
-    }
-
     return NextResponse.json({ 
       success: true, 
-      company: company,
-      user: userData 
+      company: company
     })
   } catch (error) {
-    console.error('Onboarding API error:', error)
+    console.error('Create company API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

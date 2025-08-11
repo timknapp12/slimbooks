@@ -12,9 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Building2, Users, CreditCard, Plus, Edit2, Check, X } from 'lucide-react'
+import { Building2, Users, CreditCard, Plus, Edit2, Check, X, Eye } from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import ChartOfAccounts from '@/components/chart-of-accounts'
+import { SimpleEIN } from '@/components/ein-input'
+import { US_STATES } from '@/lib/us-states'
 
 
 
@@ -32,9 +34,13 @@ function SettingsPageContent() {
   const [priceId, setPriceId] = useState<string | null>(null)
   const [showAddCompany, setShowAddCompany] = useState(false)
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null)
+  const [viewingCompanyId, setViewingCompanyId] = useState<string | null>(null)
   const [editingCompanyForm, setEditingCompanyForm] = useState({
     name: '',
-    address: '',
+    street_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
     ein: '',
     accounting_method: 'cash' as 'cash' | 'accrual'
   })
@@ -46,10 +52,17 @@ function SettingsPageContent() {
   // Form state for new company
   const [newCompanyForm, setNewCompanyForm] = useState({
     name: '',
-    address: '',
+    street_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
     ein: '',
     accounting_method: 'cash' as 'cash' | 'accrual'
   })
+
+  // Validation state
+  const [editingEinValid, setEditingEinValid] = useState(true)
+  const [newCompanyEinValid, setNewCompanyEinValid] = useState(true)
 
   const fetchData = useCallback(async () => {
     if (!currentCompany) return
@@ -267,11 +280,15 @@ function SettingsPageContent() {
     }
   }
 
-  const handleStartEditCompany = (userCompany: { company_id: string; company: { name: string; address: string; ein: string; accounting_method: 'cash' | 'accrual' } }) => {
+  const handleStartEditCompany = (userCompany: { company_id: string; company: { name: string; street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null; ein: string; accounting_method: 'cash' | 'accrual' } }) => {
     setEditingCompanyId(userCompany.company_id)
+    
     setEditingCompanyForm({
       name: userCompany.company.name || '',
-      address: userCompany.company.address || '',
+      street_address: userCompany.company.street_address || '',
+      city: userCompany.company.city || '',
+      state: userCompany.company.state || '',
+      zip_code: userCompany.company.zip_code || '',
       ein: userCompany.company.ein || '',
       accounting_method: userCompany.company.accounting_method || 'cash'
     })
@@ -281,10 +298,31 @@ function SettingsPageContent() {
     setEditingCompanyId(null)
     setEditingCompanyForm({
       name: '',
-      address: '',
+      street_address: '',
+      city: '',
+      state: '',
+      zip_code: '',
       ein: '',
       accounting_method: 'cash'
     })
+  }
+
+  const handleViewCompany = (companyId: string) => {
+    setViewingCompanyId(companyId)
+  }
+
+  const handleCloseViewCompany = () => {
+    setViewingCompanyId(null)
+  }
+
+  const formatAddress = (company: { street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null }) => {
+    const parts = [
+      company.street_address,
+      company.city,
+      company.state && company.zip_code ? `${company.state} ${company.zip_code}` : company.state || company.zip_code
+    ].filter(Boolean)
+    
+    return parts.length > 0 ? parts.join(', ') : 'No address provided'
   }
 
   const handleSaveEditCompany = async () => {
@@ -295,7 +333,10 @@ function SettingsPageContent() {
         .from('companies')
         .update({
           name: editingCompanyForm.name,
-          address: editingCompanyForm.address,
+          street_address: editingCompanyForm.street_address || null,
+          city: editingCompanyForm.city || null,
+          state: editingCompanyForm.state || null,
+          zip_code: editingCompanyForm.zip_code || null,
           ein: editingCompanyForm.ein,
           accounting_method: editingCompanyForm.accounting_method
         })
@@ -311,7 +352,10 @@ function SettingsPageContent() {
       setEditingCompanyId(null)
       setEditingCompanyForm({
         name: '',
-        address: '',
+        street_address: '',
+        city: '',
+        state: '',
+        zip_code: '',
         ein: '',
         accounting_method: 'cash'
       })
@@ -362,38 +406,75 @@ function SettingsPageContent() {
             <CardContent>
               <div className="space-y-4">
                 {userCompanies.map((userCompany) => (
-                  <div key={userCompany.company_id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={userCompany.company_id} className="p-4 border rounded-lg">
                     {editingCompanyId === userCompany.company_id ? (
                       // Edit mode
                       <div className="flex-1 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`edit-company-name-${userCompany.company_id}`}>Company Name *</Label>
-                            <Input
-                              id={`edit-company-name-${userCompany.company_id}`}
-                              value={editingCompanyForm.name}
-                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, name: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor={`edit-company-ein-${userCompany.company_id}`}>EIN</Label>
-                            <Input
-                              id={`edit-company-ein-${userCompany.company_id}`}
-                              value={editingCompanyForm.ein}
-                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, ein: e.target.value })}
-                              placeholder="XX-XXXXXXX"
-                            />
-                          </div>
+                        <div>
+                          <Label htmlFor={`edit-company-name-${userCompany.company_id}`}>Company Name *</Label>
+                          <Input
+                            id={`edit-company-name-${userCompany.company_id}`}
+                            value={editingCompanyForm.name}
+                            onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, name: e.target.value })}
+                            required
+                          />
                         </div>
                         <div>
-                          <Label htmlFor={`edit-company-address-${userCompany.company_id}`}>Business Address</Label>
-                          <Input
-                            id={`edit-company-address-${userCompany.company_id}`}
-                            value={editingCompanyForm.address}
-                            onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, address: e.target.value })}
-                            placeholder="123 Main St, City, State, ZIP"
+                          <SimpleEIN
+                            id={`edit-company-ein-${userCompany.company_id}`}
+                            value={editingCompanyForm.ein}
+                            onValueChangeAction={(value) => setEditingCompanyForm({ ...editingCompanyForm, ein: value })}
+                            onValidationChange={setEditingEinValid}
+                            nextInputId={`edit-company-street-${userCompany.company_id}`}
                           />
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor={`edit-company-street-${userCompany.company_id}`}>Street Address</Label>
+                            <Input
+                              id={`edit-company-street-${userCompany.company_id}`}
+                              value={editingCompanyForm.street_address}
+                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, street_address: e.target.value })}
+                              placeholder="123 Main St"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor={`edit-company-city-${userCompany.company_id}`}>City</Label>
+                              <Input
+                                id={`edit-company-city-${userCompany.company_id}`}
+                                value={editingCompanyForm.city}
+                                onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, city: e.target.value })}
+                                placeholder="San Francisco"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`edit-company-state-${userCompany.company_id}`}>State</Label>
+                              <Select
+                                value={editingCompanyForm.state}
+                                onValueChange={(value) => setEditingCompanyForm({ ...editingCompanyForm, state: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select state" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {US_STATES.map((state) => (
+                                    <SelectItem key={state.code} value={state.code}>
+                                      {state.name} ({state.code})
+                                    </SelectItem>
+                                  ))}                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor={`edit-company-zip-${userCompany.company_id}`}>ZIP Code</Label>
+                              <Input
+                                id={`edit-company-zip-${userCompany.company_id}`}
+                                value={editingCompanyForm.zip_code}
+                                onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, zip_code: e.target.value })}
+                                placeholder="12345"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div>
                           <Label htmlFor={`edit-company-accounting-${userCompany.company_id}`}>Accounting Method</Label>
@@ -407,13 +488,16 @@ function SettingsPageContent() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="cash">Cash Basis</SelectItem>
-                              <SelectItem value="accrual">Accrual Basis</SelectItem>
-                            </SelectContent>
-                          </Select>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="accrual">Accrual</SelectItem>
+                            </SelectContent>                          </Select>
                         </div>
                         <div className="flex gap-2">
-                          <Button onClick={handleSaveEditCompany} size="sm">
+                          <Button 
+                            onClick={handleSaveEditCompany} 
+                            size="sm"
+                            disabled={!editingEinValid}
+                          >
                             <Check className="mr-2 h-4 w-4" />
                             Save
                           </Button>
@@ -423,9 +507,57 @@ function SettingsPageContent() {
                           </Button>
                         </div>
                       </div>
+                    ) : viewingCompanyId === userCompany.company_id ? (
+                      // View mode - detailed view
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-lg">{userCompany.company.name}</h4>
+                          <Button onClick={handleCloseViewCompany} variant="ghost" size="sm">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">EIN</Label>
+                            <p className="text-sm">{userCompany.company.ein || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Accounting Method</Label>
+                            <p className="text-sm capitalize">{userCompany.company.accounting_method}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Address</Label>
+                          <p className="text-sm">{formatAddress(userCompany.company)}</p>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="flex gap-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              userCompany.role === 'admin' 
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-secondary text-secondary-foreground'
+                            }`}>
+                              {userCompany.role === 'admin' ? 'Admin' : 'Staff'}
+                            </span>
+                            {userCompany.is_default && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => handleStartEditCompany(userCompany)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
-                      // View mode
-                      <>
+                      // Summary mode
+                      <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{userCompany.company.name}</p>
                           <p className="text-sm text-muted-foreground">
@@ -434,6 +566,13 @@ function SettingsPageContent() {
                           </p>
                         </div>
                         <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleViewCompany(userCompany.company_id)}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             onClick={() => handleStartEditCompany(userCompany)}
                             variant="ghost"
@@ -454,7 +593,7 @@ function SettingsPageContent() {
                             </span>
                           )}
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -491,16 +630,27 @@ function SettingsPageContent() {
                           return
                         }
 
-                        // Create new company using database function
-                        const { error: functionError } = await supabase
-                          .rpc('create_company_with_user_auth', {
-                            company_name: newCompanyForm.name,
-                            company_address: newCompanyForm.address || null,
-                            company_ein: newCompanyForm.ein || null,
-                            company_accounting_method: newCompanyForm.accounting_method
-                          })
+                        // Create company via API route
+                        const response = await fetch('/api/create-company', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            companyName: newCompanyForm.name,
+                            ein: newCompanyForm.ein || null,
+                            streetAddress: newCompanyForm.street_address || null,
+                            city: newCompanyForm.city || null,
+                            state: newCompanyForm.state || null,
+                            zipCode: newCompanyForm.zip_code || null,
+                            accountingMethod: newCompanyForm.accounting_method
+                          }),
+                        })
 
-                        if (functionError) throw functionError
+                        if (!response.ok) {
+                          const errorData = await response.json()
+                          throw new Error(errorData.error || 'Failed to create company')
+                        }
 
                         toast({
                           title: 'Success',
@@ -508,7 +658,7 @@ function SettingsPageContent() {
                         })
 
                         setShowAddCompany(false)
-                        setNewCompanyForm({ name: '', address: '', ein: '', accounting_method: 'cash' })
+                        setNewCompanyForm({ name: '', street_address: '', city: '', state: '', zip_code: '', ein: '', accounting_method: 'cash' })
                         await refreshCompanies()
                       } catch (error) {
                         console.error('Company creation error:', error)
@@ -530,25 +680,68 @@ function SettingsPageContent() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="newCompanyAddress">Business Address</Label>
-                          <Input
-                            id="newCompanyAddress"
-                            value={newCompanyForm.address}
-                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, address: e.target.value })}
-                            placeholder="123 Main St, City, State, ZIP"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="newCompanyEin">EIN</Label>
-                          <Input
+                          <SimpleEIN
                             id="newCompanyEin"
                             value={newCompanyForm.ein}
-                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, ein: e.target.value })}
-                            placeholder="XX-XXXXXXX"
+                            onValueChangeAction={(value) => setNewCompanyForm({ ...newCompanyForm, ein: value })}
+                            onValidationChange={setNewCompanyEinValid}
+                            nextInputId="newCompanyStreet"
                           />
                         </div>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="newCompanyStreet">Street Address</Label>
+                            <Input
+                              id="newCompanyStreet"
+                              value={newCompanyForm.street_address}
+                              onChange={(e) => setNewCompanyForm({ ...newCompanyForm, street_address: e.target.value })}
+                              placeholder="123 Main St"
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor="newCompanyCity">City</Label>
+                              <Input
+                                id="newCompanyCity"
+                                value={newCompanyForm.city}
+                                onChange={(e) => setNewCompanyForm({ ...newCompanyForm, city: e.target.value })}
+                                placeholder="San Francisco"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="newCompanyState">State</Label>
+                              <Select
+                                value={newCompanyForm.state}
+                                onValueChange={(value) => setNewCompanyForm({ ...newCompanyForm, state: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select state" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {US_STATES.map((state) => (
+                                    <SelectItem key={state.code} value={state.code}>
+                                      {state.name} ({state.code})
+                                    </SelectItem>
+                                  ))}                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="newCompanyZip">ZIP Code</Label>
+                              <Input
+                                id="newCompanyZip"
+                                value={newCompanyForm.zip_code}
+                                onChange={(e) => setNewCompanyForm({ ...newCompanyForm, zip_code: e.target.value })}
+                                placeholder="12345"
+                              />
+                            </div>
+                          </div>
+                        </div>
                         <div className="flex gap-2">
-                          <Button type="submit" size="sm">
+                          <Button 
+                            type="submit" 
+                            size="sm"
+                            disabled={!newCompanyEinValid}
+                          >
                             Create Company
                           </Button>
                           <Button 

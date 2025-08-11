@@ -21,6 +21,16 @@ export function DashboardContent({ children }: DashboardContentProps) {
   const { currentCompany, userCompanies, setCurrentCompany, isRefreshing } = useCompany()
   const router = useRouter()
   
+  const formatAddress = (company: { street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null }) => {
+    const parts = [
+      company.street_address,
+      company.city,
+      company.state,
+      company.zip_code
+    ].filter(Boolean)
+    return parts.length > 0 ? parts.join(', ') : 'No address'
+  }
+  
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -44,7 +54,7 @@ export function DashboardContent({ children }: DashboardContentProps) {
                         </span>
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
+                    <DropdownMenuContent align="start" className="w-auto max-w-none sm:max-w-sm">
                       {userCompanies.map((userCompany) => (
                         <DropdownMenuItem
                           key={userCompany.company_id}
@@ -53,8 +63,8 @@ export function DashboardContent({ children }: DashboardContentProps) {
                         >
                           <div>
                             <div className="font-medium">{userCompany.company.name}</div>
-                            <div className="text-sm text-muted-foreground truncate">
-                              {userCompany.company.address}
+                            <div className="text-sm text-muted-foreground whitespace-nowrap sm:whitespace-normal">
+                              {formatAddress(userCompany.company)}
                             </div>
                           </div>
                         </DropdownMenuItem>
@@ -70,7 +80,7 @@ export function DashboardContent({ children }: DashboardContentProps) {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {currentCompany.address}
+                    {formatAddress(currentCompany)}
                   </p>
                 </div>
               </div>
