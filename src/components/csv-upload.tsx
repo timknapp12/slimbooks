@@ -587,9 +587,10 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                         {validation.mappings.map((mapping, index) => (
                           <div key={index} className='flex justify-between'>
                             <span>
-                              "{mapping.originalCategory}" ({mapping.type})
+                              &quot;{mapping.originalCategory}&quot; (
+                              {mapping.type})
                             </span>
-                            <span>→ "{mapping.mappedCategory}"</span>
+                            <span>→ &quot;{mapping.mappedCategory}&quot;</span>
                           </div>
                         ))}
                       </div>
