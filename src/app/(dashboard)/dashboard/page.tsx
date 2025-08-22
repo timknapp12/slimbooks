@@ -365,7 +365,7 @@ export default function DashboardPage() {
               onCancelEditing={cancelEditing}
               onSaveTransaction={handleSaveTransaction}
               onDeleteTransaction={handleDeleteTransaction}
-              onUpdateEditingTransaction={setEditingTransaction}
+              onUpdateEditingTransaction={(updates) => setEditingTransaction(prev => ({ ...prev, ...updates }))}
               showActions={true}
             />
           ) : (

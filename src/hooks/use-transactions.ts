@@ -381,14 +381,42 @@ export function useTransactions({ supabase, currentCompany }: UseTransactionsPro
         return false
       }
 
+      // Validate required fields
+      if (!editingTransaction.date) {
+        toast({
+          title: 'Error',
+          description: 'Date is required',
+          variant: 'destructive',
+        })
+        return false
+      }
+
+      if (!editingTransaction.category) {
+        toast({
+          title: 'Error',
+          description: 'Category is required',
+          variant: 'destructive',
+        })
+        return false
+      }
+
+      if (!editingTransaction.amount || editingTransaction.amount <= 0) {
+        toast({
+          title: 'Error',
+          description: 'Amount must be greater than 0',
+          variant: 'destructive',
+        })
+        return false
+      }
+
       // Create the new double-entry transaction
       await createSimpleDoubleEntryTransaction(
         supabase,
         currentCompany.id,
         user.id,
-        editingTransaction.date || '',
+        editingTransaction.date,
         editingTransaction.type || 'expense',
-        editingTransaction.category || '',
+        editingTransaction.category,
         parseFloat(editingTransaction.amount?.toString() || '0'),
         editingTransaction.description || '',
         'manual'
