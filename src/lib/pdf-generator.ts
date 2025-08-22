@@ -64,21 +64,43 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
   const page = pdfDoc.addPage([612, 792]) // US Letter size
   const { width, height } = page.getSize()
 
+  // Define margins and layout constants
+  const leftMargin = 60
+  const rightMargin = 60
+  const centerX = width / 2
+
   // Get the standard font
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-  let yPosition = height - 50
+  let yPosition = height - 60
 
-  // Helper function to add text
-  const addText = (text: string, x: number, y: number, fontSize: number = 12, isBold: boolean = false) => {
+  // Helper function to add text with proper centering
+  const addText = (text: string, x: number, y: number, fontSize: number = 12, isBold: boolean = false, centered: boolean = false) => {
     const currentFont = isBold ? boldFont : font
+    let xPos = x
+    
+    if (centered) {
+      const textWidth = currentFont.widthOfTextAtSize(text, fontSize)
+      xPos = centerX - (textWidth / 2)
+    }
+    
     page.drawText(text, {
-      x,
+      x: xPos,
       y,
       size: fontSize,
       font: currentFont,
       color: rgb(0, 0, 0),
+    })
+  }
+
+  // Helper function to add a horizontal line
+  const addLine = (y: number, startX: number = leftMargin, endX: number = width - rightMargin) => {
+    page.drawLine({
+      start: { x: startX, y },
+      end: { x: endX, y },
+      thickness: 1,
+      color: rgb(0.7, 0.7, 0.7),
     })
   }
 
@@ -90,279 +112,223 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     }).format(amount)
   }
 
-  // Header
+  // Header section with proper centering
   const reportTitle = reportType === 'profit-loss' ? 'PROFIT & LOSS STATEMENT' :
                      reportType === 'balance-sheet' ? 'BALANCE SHEET' :
                      reportType === 'cash-flow' ? 'CASH FLOW STATEMENT' :
+                     reportType === 'general-ledger' ? 'GENERAL LEDGER' :
+                     reportType === 'trial-balance' ? 'TRIAL BALANCE' :
                      'FINANCIAL REPORT'
   
-  addText(reportTitle, width / 2 - 60, yPosition, 18, true)
+  addText(reportTitle, 0, yPosition, 20, true, true)
+  yPosition -= 35
+
+  addText(companyName, 0, yPosition, 16, true, true)
   yPosition -= 30
 
-  addText(companyName, width / 2 - 50, yPosition, 14, true)
-  yPosition -= 25
-
-  if (reportType === 'balance-sheet') {
-    addText(`As of ${formatDateForPDF(dateTo)}`, 50, yPosition)
-  } else {
-    addText(`Period: ${formatDateForPDF(dateFrom)} - ${formatDateForPDF(dateTo)}`, 50, yPosition)
-  }
+  const dateText = reportType === 'balance-sheet' 
+    ? `As of ${formatDateForPDF(dateTo)}`
+    : `Period: ${formatDateForPDF(dateFrom)} - ${formatDateForPDF(dateTo)}`
+  
+  addText(dateText, 0, yPosition, 12, false, true)
   yPosition -= 20
 
-  addText(`Accounting Method: ${accountingMethod.charAt(0).toUpperCase() + accountingMethod.slice(1)} Basis`, 50, yPosition)
-  yPosition -= 40
+  addText(`Accounting Method: ${accountingMethod.charAt(0).toUpperCase() + accountingMethod.slice(1)} Basis`, 0, yPosition, 12, false, true)
+  yPosition -= 30
+
+  // Add separator line
+  addLine(yPosition)
+  yPosition -= 30
+
+  // Helper function to add a section with proper formatting
+  const addSection = (title: string, items: Array<{accountNumber: string; accountName: string; amount: number}>, totalLabel: string, totalAmount: number) => {
+    addText(title, leftMargin, yPosition, 14, true)
+    yPosition -= 25
+
+    items.forEach((item) => {
+      addText(`${item.accountNumber} - ${item.accountName}`, leftMargin + 20, yPosition, 11)
+      addText(formatCurrency(item.amount), width - rightMargin - 120, yPosition, 11)
+      yPosition -= 16
+    })
+
+    // Add subtotal line
+    addLine(yPosition + 5, leftMargin, width - rightMargin)
+    yPosition -= 10
+
+    addText(totalLabel, leftMargin + 20, yPosition, 12, true)
+    addText(formatCurrency(totalAmount), width - rightMargin - 120, yPosition, 12, true)
+    yPosition -= 25
+  }
 
   // Generate content based on report type
   if (reportType === 'profit-loss' || reportType === 'all') {
     // Revenue section
-    addText('Revenue:', 50, yPosition, 14, true)
-    yPosition -= 20
-
-    reportData.profitLoss.revenue.forEach((item) => {
-      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-      addText(formatCurrency(item.amount), width - 150, yPosition)
-      yPosition -= 15
-    })
-
-    addText('Total Revenue:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.profitLoss.totalRevenue), width - 150, yPosition, 12, true)
-    yPosition -= 30
+    addSection('REVENUE', reportData.profitLoss.revenue, 'Total Revenue', reportData.profitLoss.totalRevenue)
+    yPosition -= 10
 
     // Cost of Goods Sold section
     if (reportData.profitLoss.costOfGoodsSold.length > 0) {
-      addText('Cost of Goods Sold:', 50, yPosition, 14, true)
-      yPosition -= 20
+      addSection('COST OF GOODS SOLD', reportData.profitLoss.costOfGoodsSold, 'Total Cost of Goods Sold', reportData.profitLoss.totalCostOfGoodsSold)
 
-      reportData.profitLoss.costOfGoodsSold.forEach((item) => {
-        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-        addText(formatCurrency(item.amount), width - 150, yPosition)
-        yPosition -= 15
-      })
-
-      addText('Total Cost of Goods Sold:', 50, yPosition, 12, true)
-      addText(formatCurrency(reportData.profitLoss.totalCostOfGoodsSold), width - 150, yPosition, 12, true)
-      yPosition -= 30
-
-      // Gross Profit
-      addText('Gross Profit:', 50, yPosition, 12, true)
-      addText(formatCurrency(reportData.profitLoss.grossProfit), width - 150, yPosition, 12, true)
+      // Gross Profit with emphasis
+      addLine(yPosition, leftMargin, width - rightMargin)
+      yPosition -= 15
+      addText('GROSS PROFIT:', leftMargin + 20, yPosition, 13, true)
+      addText(formatCurrency(reportData.profitLoss.grossProfit), width - rightMargin - 120, yPosition, 13, true)
       yPosition -= 30
     }
 
     // Operating Expenses section
-    addText('Operating Expenses:', 50, yPosition, 14, true)
-    yPosition -= 20
+    addSection('OPERATING EXPENSES', reportData.profitLoss.operatingExpenses, 'Total Operating Expenses', reportData.profitLoss.totalOperatingExpenses)
 
-    reportData.profitLoss.operatingExpenses.forEach((item) => {
-      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-      addText(formatCurrency(item.amount), width - 150, yPosition)
-      yPosition -= 15
-    })
-
-    addText('Total Operating Expenses:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.profitLoss.totalOperatingExpenses), width - 150, yPosition, 12, true)
-    yPosition -= 30
-
-    // Operating Income
-    addText('Operating Income:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.profitLoss.operatingIncome), width - 150, yPosition, 12, true)
+    // Operating Income with emphasis
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 15
+    addText('OPERATING INCOME:', leftMargin + 20, yPosition, 13, true)
+    addText(formatCurrency(reportData.profitLoss.operatingIncome), width - rightMargin - 120, yPosition, 13, true)
     yPosition -= 30
 
     // Other Income section
     if (reportData.profitLoss.otherIncome.length > 0) {
-      addText('Other Income:', 50, yPosition, 14, true)
-      yPosition -= 20
-
-      reportData.profitLoss.otherIncome.forEach((item) => {
-        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-        addText(formatCurrency(item.amount), width - 150, yPosition)
-        yPosition -= 15
-      })
-
-      addText('Total Other Income:', 50, yPosition, 12, true)
-      addText(formatCurrency(reportData.profitLoss.totalOtherIncome), width - 150, yPosition, 12, true)
-      yPosition -= 30
+      addSection('OTHER INCOME', reportData.profitLoss.otherIncome, 'Total Other Income', reportData.profitLoss.totalOtherIncome)
     }
 
     // Other Expenses section
     if (reportData.profitLoss.otherExpenses.length > 0) {
-      addText('Other Expenses:', 50, yPosition, 14, true)
-      yPosition -= 20
-
-      reportData.profitLoss.otherExpenses.forEach((item) => {
-        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-        addText(formatCurrency(item.amount), width - 150, yPosition)
-        yPosition -= 15
-      })
-
-      addText('Total Other Expenses:', 50, yPosition, 12, true)
-      addText(formatCurrency(reportData.profitLoss.totalOtherExpenses), width - 150, yPosition, 12, true)
-      yPosition -= 30
+      addSection('OTHER EXPENSES', reportData.profitLoss.otherExpenses, 'Total Other Expenses', reportData.profitLoss.totalOtherExpenses)
     }
 
-    // Net Income
-    addText('Net Income:', 50, yPosition, 14, true)
-    addText(formatCurrency(reportData.profitLoss.netIncome), width - 150, yPosition, 14, true)
+    // Net Income with double line and emphasis
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 20
+    addText('NET INCOME:', leftMargin + 20, yPosition, 16, true)
+    addText(formatCurrency(reportData.profitLoss.netIncome), width - rightMargin - 120, yPosition, 16, true)
+    addLine(yPosition - 5, leftMargin, width - rightMargin)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
     yPosition -= 40
   }
 
   if (reportType === 'balance-sheet' || reportType === 'all') {
     // Assets
-    addText('Assets:', 50, yPosition, 14, true)
-    yPosition -= 20
-
-    reportData.balanceSheet.assets.forEach((item) => {
-      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-      addText(formatCurrency(item.amount), width - 150, yPosition)
-      yPosition -= 15
-    })
-
-    addText('Total Assets:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.balanceSheet.totalAssets), width - 150, yPosition, 12, true)
-    yPosition -= 25
+    addSection('ASSETS', reportData.balanceSheet.assets, 'Total Assets', reportData.balanceSheet.totalAssets)
 
     // Liabilities
-    addText('Liabilities:', 50, yPosition, 14, true)
-    yPosition -= 20
-
-    reportData.balanceSheet.liabilities.forEach((item) => {
-      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-      addText(formatCurrency(item.amount), width - 150, yPosition)
-      yPosition -= 15
-    })
-
-    addText('Total Liabilities:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.balanceSheet.totalLiabilities), width - 150, yPosition, 12, true)
-    yPosition -= 25
+    addSection('LIABILITIES', reportData.balanceSheet.liabilities, 'Total Liabilities', reportData.balanceSheet.totalLiabilities)
 
     // Equity
-    addText("Owner's Equity:", 50, yPosition, 14, true)
+    addSection("OWNER'S EQUITY", reportData.balanceSheet.equity, 'Total Equity', reportData.balanceSheet.totalEquity)
+
+    // Total Liabilities & Equity with emphasis
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
     yPosition -= 20
-
-    reportData.balanceSheet.equity.forEach((item) => {
-      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-      addText(formatCurrency(item.amount), width - 150, yPosition)
-      yPosition -= 15
-    })
-
-    addText('Total Equity:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.balanceSheet.totalEquity), width - 150, yPosition, 12, true)
-    yPosition -= 25
-
-    // Total Liabilities & Equity
-    addText('Total Liabilities & Equity:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.balanceSheet.totalLiabilities + reportData.balanceSheet.totalEquity), width - 150, yPosition, 12, true)
+    addText('TOTAL LIABILITIES & EQUITY:', leftMargin + 20, yPosition, 13, true)
+    addText(formatCurrency(reportData.balanceSheet.totalLiabilities + reportData.balanceSheet.totalEquity), width - rightMargin - 120, yPosition, 13, true)
+    addLine(yPosition - 5, leftMargin, width - rightMargin)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
     yPosition -= 40
   }
 
   if (reportType === 'cash-flow' || reportType === 'all') {
     // Operating Activities
-    addText('Operating Activities:', 50, yPosition, 14, true)
-    yPosition -= 20
-
-    reportData.cashFlow.operatingActivities.forEach((item) => {
-      addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-      addText(formatCurrency(item.amount), width - 150, yPosition)
-      yPosition -= 15
-    })
-
-    addText('Total Operating Activities:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.cashFlow.totalOperatingActivities), width - 150, yPosition, 12, true)
-    yPosition -= 25
+    addSection('OPERATING ACTIVITIES', reportData.cashFlow.operatingActivities, 'Total Operating Activities', reportData.cashFlow.totalOperatingActivities)
 
     // Investing Activities
     if (reportData.cashFlow.investingActivities.length > 0) {
-      addText('Investing Activities:', 50, yPosition, 14, true)
-      yPosition -= 20
-
-      reportData.cashFlow.investingActivities.forEach((item) => {
-        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-        addText(formatCurrency(item.amount), width - 150, yPosition)
-        yPosition -= 15
-      })
-
-      addText('Total Investing Activities:', 50, yPosition, 12, true)
-      addText(formatCurrency(reportData.cashFlow.totalInvestingActivities), width - 150, yPosition, 12, true)
-      yPosition -= 25
+      addSection('INVESTING ACTIVITIES', reportData.cashFlow.investingActivities, 'Total Investing Activities', reportData.cashFlow.totalInvestingActivities)
     }
 
     // Financing Activities
     if (reportData.cashFlow.financingActivities.length > 0) {
-      addText('Financing Activities:', 50, yPosition, 14, true)
-      yPosition -= 20
-
-      reportData.cashFlow.financingActivities.forEach((item) => {
-        addText(`${item.accountNumber} - ${item.accountName}`, 70, yPosition)
-        addText(formatCurrency(item.amount), width - 150, yPosition)
-        yPosition -= 15
-      })
-
-      addText('Total Financing Activities:', 50, yPosition, 12, true)
-      addText(formatCurrency(reportData.cashFlow.totalFinancingActivities), width - 150, yPosition, 12, true)
-      yPosition -= 25
+      addSection('FINANCING ACTIVITIES', reportData.cashFlow.financingActivities, 'Total Financing Activities', reportData.cashFlow.totalFinancingActivities)
     }
 
-    // Net Cash Flow
-    addText('Net Cash Flow:', 50, yPosition, 14, true)
-    addText(formatCurrency(reportData.cashFlow.netCashFlow), width - 150, yPosition, 14, true)
+    // Net Cash Flow with emphasis
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 20
+    addText('NET CASH FLOW:', leftMargin + 20, yPosition, 16, true)
+    addText(formatCurrency(reportData.cashFlow.netCashFlow), width - rightMargin - 120, yPosition, 16, true)
+    addLine(yPosition - 5, leftMargin, width - rightMargin)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
     yPosition -= 40
   }
 
   if (reportType === 'general-ledger' || reportType === 'all') {
-    addText('General Ledger:', 50, yPosition, 16, true)
-    yPosition -= 25
+    addText('GENERAL LEDGER', 0, yPosition, 16, true, true)
+    yPosition -= 30
 
-    Object.entries(reportData.generalLedger.accounts).forEach(([account, data]) => {
-      addText(account, 50, yPosition, 12, true)
-      yPosition -= 15
-      
-      addText(`Debits: ${formatCurrency(data.debits)}`, 70, yPosition)
-      addText(`Credits: ${formatCurrency(data.credits)}`, width - 200, yPosition)
-      yPosition -= 15
-      
-      addText(`Balance: ${formatCurrency(data.balance)}`, 70, yPosition)
-      yPosition -= 20
+    // Table headers
+    addText('Account', leftMargin, yPosition, 12, true)
+    addText('Debits', leftMargin + 200, yPosition, 12, true)
+    addText('Credits', leftMargin + 300, yPosition, 12, true)
+    addText('Balance', leftMargin + 400, yPosition, 12, true)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 20
+
+    reportData.generalLedger.accounts.forEach((account) => {
+      addText(`${account.accountNumber} - ${account.accountName}`, leftMargin, yPosition, 11)
+      addText(formatCurrency(account.debits), leftMargin + 200, yPosition, 11)
+      addText(formatCurrency(account.credits), leftMargin + 300, yPosition, 11)
+      addText(formatCurrency(account.balance), leftMargin + 400, yPosition, 11)
+      yPosition -= 16
     })
 
-    addText('Total Debits:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.generalLedger.totalDebits), width - 150, yPosition, 12, true)
+    // Totals section
+    addLine(yPosition + 5, leftMargin, width - rightMargin)
     yPosition -= 15
-
-    addText('Total Credits:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.generalLedger.totalCredits), width - 150, yPosition, 12, true)
+    addText('TOTALS:', leftMargin, yPosition, 12, true)
+    addText(formatCurrency(reportData.generalLedger.totalDebits), leftMargin + 200, yPosition, 12, true)
+    addText(formatCurrency(reportData.generalLedger.totalCredits), leftMargin + 300, yPosition, 12, true)
     yPosition -= 40
   }
 
   if (reportType === 'trial-balance' || reportType === 'all') {
-    addText('Trial Balance:', 50, yPosition, 16, true)
-    yPosition -= 25
+    addText('TRIAL BALANCE', 0, yPosition, 16, true, true)
+    yPosition -= 30
 
-    Object.entries(reportData.trialBalance.accounts).forEach(([account, data]) => {
-      addText(account, 50, yPosition)
-      if (data.balance > 0) {
-        addText(formatCurrency(data.balance), width - 150, yPosition)
-        addText('', width - 50, yPosition)
+    // Table headers
+    addText('Account', leftMargin, yPosition, 12, true)
+    addText('Debits', leftMargin + 250, yPosition, 12, true)
+    addText('Credits', leftMargin + 350, yPosition, 12, true)
+    yPosition -= 5
+    addLine(yPosition, leftMargin, width - rightMargin)
+    yPosition -= 20
+
+    reportData.trialBalance.accounts.forEach((account) => {
+      addText(`${account.accountNumber} - ${account.accountName}`, leftMargin, yPosition, 11)
+      if (account.balance > 0) {
+        addText(formatCurrency(account.balance), leftMargin + 250, yPosition, 11)
       } else {
-        addText('', width - 150, yPosition)
-        addText(formatCurrency(Math.abs(data.balance)), width - 50, yPosition)
+        addText(formatCurrency(Math.abs(account.balance)), leftMargin + 350, yPosition, 11)
       }
-      yPosition -= 15
+      yPosition -= 16
     })
 
-    addText('Total Debits:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.trialBalance.totalDebits), width - 150, yPosition, 12, true)
+    // Totals section
+    addLine(yPosition + 5, leftMargin, width - rightMargin)
     yPosition -= 15
+    addText('TOTALS:', leftMargin, yPosition, 12, true)
+    addText(formatCurrency(reportData.trialBalance.totalDebits), leftMargin + 250, yPosition, 12, true)
+    addText(formatCurrency(reportData.trialBalance.totalCredits), leftMargin + 350, yPosition, 12, true)
+    yPosition -= 20
 
-    addText('Total Credits:', 50, yPosition, 12, true)
-    addText(formatCurrency(reportData.trialBalance.totalCredits), width - 50, yPosition, 12, true)
-    yPosition -= 15
-
-    addText(`Balanced: ${reportData.trialBalance.isBalanced ? 'Yes' : 'No'}`, 50, yPosition, 12, true)
+    addText(`Status: ${reportData.trialBalance.isBalanced ? 'BALANCED' : 'NOT BALANCED'}`, leftMargin, yPosition, 12, true)
     yPosition -= 40
   }
 
-  // Footer
-  const footerY = 50
+  // Footer with separator
+  const footerY = 60
+  addLine(footerY + 20, leftMargin, width - rightMargin)
+  
   const now = new Date()
   const currentDate = now.toISOString().split('T')[0]
   const currentTime = now.toLocaleTimeString('en-US', { 
@@ -372,8 +338,9 @@ export async function generateFinancialReportPDF(options: PDFReportOptions): Pro
     minute: '2-digit',
     second: '2-digit'
   })
-  addText(`Generated on ${formatDateForPDF(currentDate)} at ${currentTime} UTC`, 50, footerY, 10)
-  addText('SlimBooks Financial Management System', width - 200, footerY, 10)
+  
+  addText(`Generated on ${formatDateForPDF(currentDate)} at ${currentTime} UTC`, leftMargin, footerY, 10)
+  addText('SlimBooks Financial Management System', width - rightMargin - 180, footerY, 10)
 
   // Save the PDF
   return await pdfDoc.save()
