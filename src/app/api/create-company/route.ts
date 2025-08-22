@@ -6,21 +6,21 @@ export async function POST(request: NextRequest) {
   try {
     // Use regular client for auth check
     const supabase = await createClient()
-    
+
     // Create service role client for database operations (bypasses RLS)
     const serviceSupabase = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    
+
     // Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Check if email is verified
@@ -31,13 +31,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { companyName, ein, streetAddress, city, state, zipCode, accountingMethod } = await request.json()
+    const {
+      companyName,
+      ein,
+      streetAddress,
+      city,
+      state,
+      zipCode,
+      accountingMethod,
+    } = await request.json()
 
     // Wait for user to be created in our users table (with retry)
     let existingUser = null
     let retryCount = 0
     const maxRetries = 5
-    
+
     while (retryCount < maxRetries) {
       const { data: userCheck, error: userCheckError } = await serviceSupabase
         .from('users')
@@ -49,10 +57,14 @@ export async function POST(request: NextRequest) {
         existingUser = userCheck
         break
       }
-      
-      console.log(`User not found in public.users table, retry ${retryCount + 1}/${maxRetries}`)
+
+      console.log(
+        `User not found in public.users table, retry ${
+          retryCount + 1
+        }/${maxRetries}`
+      )
       retryCount++
-      
+
       if (retryCount < maxRetries) {
         // Wait 1 second before retrying
         await new Promise(resolve => setTimeout(resolve, 1000))
@@ -73,17 +85,20 @@ export async function POST(request: NextRequest) {
       if (userCreateError) {
         console.error('User creation error:', userCreateError)
         return NextResponse.json(
-          { error: 'Failed to create user profile', details: userCreateError.message },
+          {
+            error: 'Failed to create user profile',
+            details: userCreateError.message,
+          },
           { status: 500 }
         )
       }
-      
+
       console.log('User created manually in public.users table')
     } else {
       console.log('User found in public.users table')
     }
 
-    console.log('Creating company manually...');
+    console.log('Creating company manually...')
 
     // Create company manually
     const { data: company, error: companyError } = await serviceSupabase
@@ -95,7 +110,7 @@ export async function POST(request: NextRequest) {
         state: state || null,
         zip_code: zipCode || null,
         ein: ein || null,
-        accounting_method: accountingMethod
+        accounting_method: accountingMethod,
       })
       .select()
       .single()
@@ -108,7 +123,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Company created successfully:', company);
+    console.log('Company created successfully:', company)
 
     // Create user-company relationship
     const { data: userCompany, error: userCompanyError } = await serviceSupabase
@@ -117,7 +132,7 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         company_id: company.id,
         role: 'admin',
-        is_default: false // Settings page companies are not default
+        is_default: false, // Settings page companies are not default
       })
       .select()
       .single()
@@ -125,16 +140,19 @@ export async function POST(request: NextRequest) {
     if (userCompanyError) {
       console.error('User-company creation error:', userCompanyError)
       return NextResponse.json(
-        { error: 'Failed to create user-company relationship', details: userCompanyError.message },
+        {
+          error: 'Failed to create user-company relationship',
+          details: userCompanyError.message,
+        },
         { status: 500 }
       )
     }
 
-    console.log('User-company relationship created:', userCompany);
+    console.log('User-company relationship created:', userCompany)
 
     // Create default chart of accounts manually
-    console.log('Creating default chart of accounts...');
-    
+    console.log('Creating default chart of accounts...')
+
     const { data: chartAccounts, error: chartError } = await serviceSupabase
       .from('chart_of_accounts')
       .insert([
@@ -145,7 +163,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Cash',
           account_type: 'asset',
           description: 'Cash on hand and in bank accounts',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -153,7 +171,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Accounts Receivable',
           account_type: 'asset',
           description: 'Amounts owed by customers',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -161,7 +179,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Inventory',
           account_type: 'asset',
           description: 'Merchandise and materials held for sale',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -169,7 +187,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Prepaid Expenses',
           account_type: 'asset',
           description: 'Expenses paid in advance',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -177,7 +195,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Equipment',
           account_type: 'asset',
           description: 'Office equipment and machinery',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -185,7 +203,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Accumulated Depreciation - Equipment',
           account_type: 'asset',
           description: 'Accumulated depreciation on equipment',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -193,7 +211,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Vehicles',
           account_type: 'asset',
           description: 'Company vehicles',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -201,7 +219,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Accumulated Depreciation - Vehicles',
           account_type: 'asset',
           description: 'Accumulated depreciation on vehicles',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -209,7 +227,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Buildings',
           account_type: 'asset',
           description: 'Company buildings and structures',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -217,7 +235,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Accumulated Depreciation - Buildings',
           account_type: 'asset',
           description: 'Accumulated depreciation on buildings',
-          is_default: true
+          is_default: true,
         },
         // Liabilities (2000-2999)
         {
@@ -226,7 +244,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Accounts Payable',
           account_type: 'liability',
           description: 'Amounts owed to suppliers and vendors',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -234,7 +252,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Notes Payable',
           account_type: 'liability',
           description: 'Short-term and long-term notes payable',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -242,7 +260,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Accrued Expenses',
           account_type: 'liability',
           description: 'Expenses incurred but not yet paid',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -250,7 +268,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Sales Tax Payable',
           account_type: 'liability',
           description: 'Sales tax collected but not yet remitted',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -258,7 +276,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Payroll Taxes Payable',
           account_type: 'liability',
           description: 'Payroll taxes withheld but not yet paid',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -266,7 +284,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Income Tax Payable',
           account_type: 'liability',
           description: 'Income taxes owed but not yet paid',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -274,24 +292,24 @@ export async function POST(request: NextRequest) {
           account_name: 'Unearned Revenue',
           account_type: 'liability',
           description: 'Revenue received in advance of services',
-          is_default: true
+          is_default: true,
         },
         // Equity (3000-3999)
         {
           company_id: company.id,
           account_number: '3000',
-          account_name: 'Owner\'s Capital',
+          account_name: "Owner's Capital",
           account_type: 'equity',
-          description: 'Owner\'s investment in the business',
-          is_default: true
+          description: "Owner's investment in the business",
+          is_default: true,
         },
         {
           company_id: company.id,
           account_number: '3100',
-          account_name: 'Owner\'s Draws',
+          account_name: "Owner's Draws",
           account_type: 'equity',
-          description: 'Owner\'s withdrawals from the business',
-          is_default: true
+          description: "Owner's withdrawals from the business",
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -299,7 +317,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Retained Earnings',
           account_type: 'equity',
           description: 'Accumulated profits not distributed',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -307,7 +325,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Common Stock',
           account_type: 'equity',
           description: 'Par value of common stock issued',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -315,7 +333,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Paid-in Capital in Excess of Par',
           account_type: 'equity',
           description: 'Amount paid for stock in excess of par value',
-          is_default: true
+          is_default: true,
         },
         // Revenue (4000-4999)
         {
@@ -324,7 +342,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Sales Revenue',
           account_type: 'revenue',
           description: 'Revenue from sales of goods or services',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -332,7 +350,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Service Revenue',
           account_type: 'revenue',
           description: 'Revenue from providing services',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -340,7 +358,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Interest Income',
           account_type: 'revenue',
           description: 'Interest earned on investments and bank accounts',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -348,7 +366,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Rental Income',
           account_type: 'revenue',
           description: 'Income from renting property or equipment',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -356,7 +374,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Other Income',
           account_type: 'revenue',
           description: 'Other miscellaneous income',
-          is_default: true
+          is_default: true,
         },
         // Expenses (5000-6999)
         {
@@ -365,7 +383,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Cost of Goods Sold',
           account_type: 'expense',
           description: 'Direct costs of producing goods or services',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -373,7 +391,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Office Supplies',
           account_type: 'expense',
           description: 'Office supplies and materials',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -381,7 +399,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Rent Expense',
           account_type: 'expense',
           description: 'Rent for office space and facilities',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -389,7 +407,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Utilities',
           account_type: 'expense',
           description: 'Electricity, water, gas, and other utilities',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -397,7 +415,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Telephone & Internet',
           account_type: 'expense',
           description: 'Phone and internet service expenses',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -405,7 +423,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Insurance',
           account_type: 'expense',
           description: 'Business insurance premiums',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -413,7 +431,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Depreciation Expense',
           account_type: 'expense',
           description: 'Depreciation on fixed assets',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -421,7 +439,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Wages & Salaries',
           account_type: 'expense',
           description: 'Employee wages and salaries',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -429,7 +447,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Payroll Taxes',
           account_type: 'expense',
           description: 'Employer portion of payroll taxes',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -437,7 +455,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Employee Benefits',
           account_type: 'expense',
           description: 'Health insurance and other employee benefits',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -445,7 +463,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Advertising & Marketing',
           account_type: 'expense',
           description: 'Advertising and marketing expenses',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -453,7 +471,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Travel & Entertainment',
           account_type: 'expense',
           description: 'Business travel and entertainment expenses',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -461,7 +479,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Professional Services',
           account_type: 'expense',
           description: 'Legal, accounting, and consulting fees',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -469,7 +487,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Repairs & Maintenance',
           account_type: 'expense',
           description: 'Repairs and maintenance expenses',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -477,7 +495,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Interest Expense',
           account_type: 'expense',
           description: 'Interest on loans and credit lines',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -485,7 +503,7 @@ export async function POST(request: NextRequest) {
           account_name: 'Bank Charges',
           account_type: 'expense',
           description: 'Bank fees and service charges',
-          is_default: true
+          is_default: true,
         },
         {
           company_id: company.id,
@@ -493,24 +511,31 @@ export async function POST(request: NextRequest) {
           account_name: 'Miscellaneous Expense',
           account_type: 'expense',
           description: 'Other miscellaneous expenses',
-          is_default: true
-        }
+          is_default: true,
+        },
       ])
       .select()
 
     if (chartError) {
       console.error('Chart of accounts creation error:', chartError)
       return NextResponse.json(
-        { error: 'Failed to create chart of accounts', details: chartError.message },
+        {
+          error: 'Failed to create chart of accounts',
+          details: chartError.message,
+        },
         { status: 500 }
       )
     }
 
-    console.log('Chart of accounts created successfully:', chartAccounts?.length, 'accounts');
+    console.log(
+      'Chart of accounts created successfully:',
+      chartAccounts?.length,
+      'accounts'
+    )
 
-    return NextResponse.json({ 
-      success: true, 
-      company: company
+    return NextResponse.json({
+      success: true,
+      company: company,
     })
   } catch (error) {
     console.error('Create company API error:', error)

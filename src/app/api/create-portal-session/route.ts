@@ -4,16 +4,28 @@ import { stripe } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
   console.log('Portal session API route hit')
-  console.log('Cookies received:', request.cookies.getAll().map(c => c.name))
-  console.log('Auth cookies:', request.cookies.getAll().filter(c => c.name.includes('auth')).map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })))
-  
+  console.log(
+    'Cookies received:',
+    request.cookies.getAll().map(c => c.name)
+  )
+  console.log(
+    'Auth cookies:',
+    request.cookies
+      .getAll()
+      .filter(c => c.name.includes('auth'))
+      .map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' }))
+  )
+
   try {
     const supabase = await createClient()
-    
+
     // Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
     console.log('Auth check:', { user: user?.id, authError })
-    
+
     if (authError || !user) {
       console.log('Authentication failed:', authError)
       return NextResponse.json(

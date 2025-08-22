@@ -41,13 +41,17 @@ export const parseDate = (dateString: string): Date => {
 // Get first day of current month
 export const getFirstDayOfMonth = (): string => {
   const date = new Date()
-  return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0]
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+    .toISOString()
+    .split('T')[0]
 }
 
 // Get last day of current month
 export const getLastDayOfMonth = (): string => {
   const date = new Date()
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0]
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+    .toISOString()
+    .split('T')[0]
 }
 
 // Get first day of a specific year
@@ -61,12 +65,18 @@ export const getLastDayOfYear = (year: number): string => {
 }
 
 // Get first day of a specific month
-export const getFirstDayOfSpecificMonth = (year: number, month: number): string => {
+export const getFirstDayOfSpecificMonth = (
+  year: number,
+  month: number
+): string => {
   return new Date(year, month, 1).toISOString().split('T')[0]
 }
 
 // Get last day of a specific month
-export const getLastDayOfSpecificMonth = (year: number, month: number): string => {
+export const getLastDayOfSpecificMonth = (
+  year: number,
+  month: number
+): string => {
   return new Date(year, month + 1, 0).toISOString().split('T')[0]
 }
 
@@ -88,12 +98,12 @@ export const getCurrentDateForDisplay = (): string => {
 // Get current time in UTC for consistent timestamps
 export const getCurrentTimeUTC = (): string => {
   const now = new Date()
-  return now.toLocaleTimeString('en-US', { 
+  return now.toLocaleTimeString('en-US', {
     timeZone: 'UTC',
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
   })
 }
 
@@ -116,4 +126,4 @@ export const getCurrentMonth = (): number => {
 export const getYearOptions = (): number[] => {
   const currentYear = getCurrentYear()
   return Array.from({ length: 5 }, (_, i) => currentYear + 1 - i)
-} 
+}

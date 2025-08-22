@@ -28,14 +28,17 @@ export async function createDoubleEntryTransaction(
   supabase: SupabaseClient,
   transaction: DoubleEntryTransaction
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('create_double_entry_transaction', {
-    p_company_id: transaction.companyId,
-    p_user_id: transaction.userId,
-    p_date: transaction.date,
-    p_description: transaction.description,
-    p_entries: transaction.entries,
-    p_source: transaction.source
-  })
+  const { data, error } = await supabase.rpc(
+    'create_double_entry_transaction',
+    {
+      p_company_id: transaction.companyId,
+      p_user_id: transaction.userId,
+      p_date: transaction.date,
+      p_description: transaction.description,
+      p_entries: transaction.entries,
+      p_source: transaction.source,
+    }
+  )
 
   if (error) {
     console.error('Error creating double-entry transaction:', error)
@@ -60,16 +63,19 @@ export async function createSimpleDoubleEntryTransaction(
   description: string,
   source: 'manual' | 'import' | 'system' = 'manual'
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('create_simple_double_entry_transaction', {
-    p_company_id: companyId,
-    p_user_id: userId,
-    p_date: date,
-    p_type: type,
-    p_category: category,
-    p_amount: amount,
-    p_description: description,
-    p_source: source
-  })
+  const { data, error } = await supabase.rpc(
+    'create_simple_double_entry_transaction',
+    {
+      p_company_id: companyId,
+      p_user_id: userId,
+      p_date: date,
+      p_type: type,
+      p_category: category,
+      p_amount: amount,
+      p_description: description,
+      p_source: source,
+    }
+  )
 
   if (error) {
     console.error('Error creating simple double-entry transaction:', error)
@@ -93,7 +99,7 @@ export function getCorrespondingAccount(): string {
  * - Transaction type determines the primary account category
  * - Category is the specific account name from chart of accounts
  * - Corresponding account balances the transaction
- * 
+ *
  * Note: This function assumes the category parameter is a valid account name
  * from the company's Chart of Accounts. The corresponding account (usually Cash)
  * should also exist in the company's Chart of Accounts.
@@ -105,10 +111,10 @@ export function createDoubleEntryEntries(
   description: string
 ): TransactionEntry[] {
   const entries: TransactionEntry[] = []
-  
+
   // The category parameter should be a valid account name from the company's Chart of Accounts
   // The corresponding account (typically Cash) should also exist in the company's Chart of Accounts
-  
+
   switch (type) {
     case 'income':
       // Income: Debit Cash, Credit the specific revenue account (category)
@@ -118,7 +124,7 @@ export function createDoubleEntryEntries(
         { accountName: category, creditAmount: amount, description }
       )
       break
-      
+
     case 'expense':
       // Expense: Debit the specific expense account (category), Credit Cash
       // Both the category (e.g., "Rent Expense") and "Cash" must exist in Chart of Accounts
@@ -127,20 +133,24 @@ export function createDoubleEntryEntries(
         { accountName: 'Cash', creditAmount: amount, description }
       )
       break
-      
+
     case 'asset':
       if (category === 'Cash') {
         // Cash deposit: Debit Cash, Credit Owner's Capital
         // Both "Cash" and "Owner's Capital" must exist in Chart of Accounts
         entries.push(
           { accountName: 'Cash', debitAmount: amount, description },
-          { accountName: 'Owner\'s Capital', creditAmount: amount, description }
+          { accountName: "Owner's Capital", creditAmount: amount, description }
         )
       } else if (category === 'Accounts Receivable') {
         // Credit sale: Debit Accounts Receivable, Credit Sales Revenue
         // Both "Accounts Receivable" and "Sales Revenue" must exist in Chart of Accounts
         entries.push(
-          { accountName: 'Accounts Receivable', debitAmount: amount, description },
+          {
+            accountName: 'Accounts Receivable',
+            debitAmount: amount,
+            description,
+          },
           { accountName: 'Sales Revenue', creditAmount: amount, description }
         )
       } else {
@@ -152,7 +162,7 @@ export function createDoubleEntryEntries(
         )
       }
       break
-      
+
     case 'liability':
       // Liability payment: Debit the specific liability account (category), Credit Cash
       // Both the category (e.g., "Accounts Payable") and "Cash" must exist in Chart of Accounts
@@ -161,9 +171,9 @@ export function createDoubleEntryEntries(
         { accountName: 'Cash', creditAmount: amount, description }
       )
       break
-      
+
     case 'equity':
-      if (category === 'Owner\'s Draws') {
+      if (category === "Owner's Draws") {
         // Owner's draw: Debit Owner's Draws, Credit Cash
         // Both "Owner's Draws" and "Cash" must exist in Chart of Accounts
         entries.push(
@@ -180,7 +190,7 @@ export function createDoubleEntryEntries(
       }
       break
   }
-  
+
   return entries
 }
 
@@ -198,14 +208,14 @@ export function convertToDoubleEntry(
   source: 'manual' | 'import' | 'system' = 'manual'
 ): DoubleEntryTransaction {
   const entries = createDoubleEntryEntries(type, category, amount, description)
-  
+
   return {
     companyId,
     userId,
     date,
     description,
     source,
-    entries
+    entries,
   }
 }
 
@@ -221,7 +231,7 @@ export async function getAccountBalance(
   const { data, error } = await supabase.rpc('get_account_balance', {
     p_company_id: companyId,
     p_account_id: accountId,
-    p_as_of_date: asOfDate || new Date().toISOString().split('T')[0]
+    p_as_of_date: asOfDate || new Date().toISOString().split('T')[0],
   })
 
   if (error) {
@@ -230,4 +240,4 @@ export async function getAccountBalance(
   }
 
   return data || 0
-} 
+}

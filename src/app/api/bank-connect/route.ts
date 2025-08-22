@@ -14,7 +14,9 @@ export async function POST(request: NextRequest) {
     const { bankName, accountType } = await request.json()
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -28,7 +30,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!userCompany?.company_id) {
-      return NextResponse.json({ error: 'No default company found' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'No default company found' },
+        { status: 400 }
+      )
     }
 
     // In a real implementation, you would:
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest) {
       bank_name: bankName,
       account_type: accountType,
       status: 'connected',
-      last_sync: new Date().toISOString()
+      last_sync: new Date().toISOString(),
     }
 
     // Store bank connection (you'd need to create this table)
@@ -56,7 +61,7 @@ export async function POST(request: NextRequest) {
         account_type: accountType,
         connection_id: mockConnection.id,
         status: 'connected',
-        last_sync: getCurrentDateTime()
+        last_sync: getCurrentDateTime(),
       })
 
     if (connectionError) {
@@ -71,46 +76,45 @@ export async function POST(request: NextRequest) {
         date: getCurrentDate(),
         amount: -45.67,
         description: 'STARBUCKS COFFEE #1234',
-        category: 'Meals & Entertainment'
+        category: 'Meals & Entertainment',
       },
       {
         id: `txn_${Date.now()}_2`,
         date: getCurrentDate(),
-        amount: -120.00,
+        amount: -120.0,
         description: 'OFFICE DEPOT SUPPLIES',
-        category: 'Office Supplies'
+        category: 'Office Supplies',
       },
       {
         id: `txn_${Date.now()}_3`,
         date: getCurrentDate(),
-        amount: 2500.00,
+        amount: 2500.0,
         description: 'CLIENT PAYMENT - INVOICE #123',
-        category: 'Service Revenue'
-      }
+        category: 'Service Revenue',
+      },
     ]
 
     return NextResponse.json({
       success: true,
       connection: mockConnection,
       transactions: mockTransactions,
-      message: 'Bank account connected successfully (demo mode)'
+      message: 'Bank account connected successfully (demo mode)',
     })
-
   } catch (error: unknown) {
     console.error('Error connecting bank account:', error)
-    const errorMessage = error instanceof Error ? error.message : 'An error occurred'
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    )
+    const errorMessage =
+      error instanceof Error ? error.message : 'An error occurred'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
 
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -124,7 +128,10 @@ export async function GET() {
       .single()
 
     if (!userCompany?.company_id) {
-      return NextResponse.json({ error: 'No default company found' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'No default company found' },
+        { status: 400 }
+      )
     }
 
     // Fetch bank connections
@@ -135,15 +142,12 @@ export async function GET() {
 
     return NextResponse.json({
       connections: connections || [],
-      message: 'Bank connections retrieved successfully'
+      message: 'Bank connections retrieved successfully',
     })
-
   } catch (error: unknown) {
     console.error('Error fetching bank connections:', error)
-    const errorMessage = error instanceof Error ? error.message : 'An error occurred'
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    )
+    const errorMessage =
+      error instanceof Error ? error.message : 'An error occurred'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

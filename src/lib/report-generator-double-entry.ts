@@ -1,14 +1,32 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
-
-
 export interface ReportData {
   profitLoss: {
-    revenue: Array<{ accountNumber: string; accountName: string; amount: number }>
-    costOfGoodsSold: Array<{ accountNumber: string; accountName: string; amount: number }>
-    operatingExpenses: Array<{ accountNumber: string; accountName: string; amount: number }>
-    otherIncome: Array<{ accountNumber: string; accountName: string; amount: number }>
-    otherExpenses: Array<{ accountNumber: string; accountName: string; amount: number }>
+    revenue: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    costOfGoodsSold: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    operatingExpenses: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    otherIncome: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    otherExpenses: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
     totalRevenue: number
     totalCostOfGoodsSold: number
     totalOperatingExpenses: number
@@ -19,36 +37,70 @@ export interface ReportData {
     netIncome: number
   }
   balanceSheet: {
-    assets: Array<{ accountNumber: string; accountName: string; amount: number }>
-    liabilities: Array<{ accountNumber: string; accountName: string; amount: number }>
-    equity: Array<{ accountNumber: string; accountName: string; amount: number }>
+    assets: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    liabilities: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    equity: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
     totalAssets: number
     totalLiabilities: number
     totalEquity: number
   }
   cashFlow: {
-    operatingActivities: Array<{ accountNumber: string; accountName: string; amount: number }>
-    investingActivities: Array<{ accountNumber: string; accountName: string; amount: number }>
-    financingActivities: Array<{ accountNumber: string; accountName: string; amount: number }>
+    operatingActivities: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    investingActivities: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
+    financingActivities: Array<{
+      accountNumber: string
+      accountName: string
+      amount: number
+    }>
     totalOperatingActivities: number
     totalInvestingActivities: number
     totalFinancingActivities: number
     netCashFlow: number
   }
   generalLedger: {
-    accounts: Array<{ accountNumber: string; accountName: string; debits: number; credits: number; balance: number }>
+    accounts: Array<{
+      accountNumber: string
+      accountName: string
+      debits: number
+      credits: number
+      balance: number
+    }>
     totalDebits: number
     totalCredits: number
   }
   trialBalance: {
-    accounts: Array<{ accountNumber: string; accountName: string; debits: number; credits: number; balance: number }>
+    accounts: Array<{
+      accountNumber: string
+      accountName: string
+      debits: number
+      credits: number
+      balance: number
+    }>
     totalDebits: number
     totalCredits: number
     isBalanced: boolean
   }
 }
-
-
 
 export interface GenerateReportsParams {
   supabase: SupabaseClient
@@ -57,13 +109,11 @@ export interface GenerateReportsParams {
   toDate: string
 }
 
-
-
 export async function generateFinancialReportsDoubleEntry({
   supabase,
   companyId,
   fromDate,
-  toDate
+  toDate,
 }: GenerateReportsParams): Promise<ReportData> {
   // Get Chart of Accounts for the current company
   const { data: chartOfAccounts, error: coaError } = await supabase
@@ -82,28 +132,39 @@ export async function generateFinancialReportsDoubleEntry({
   const accountTypeMap: { [accountName: string]: string } = {}
   const accountNumberMap: { [accountName: string]: string } = {}
   const accountIdMap: { [accountName: string]: string } = {}
-  
-  chartOfAccounts?.forEach((account: { id: string; account_name: string; account_type: string; account_number: string }) => {
-    accountTypeMap[account.account_name] = account.account_type
-    accountNumberMap[account.account_name] = account.account_number
-    accountIdMap[account.account_name] = account.id
-  })
+
+  chartOfAccounts?.forEach(
+    (account: {
+      id: string
+      account_name: string
+      account_type: string
+      account_number: string
+    }) => {
+      accountTypeMap[account.account_name] = account.account_type
+      accountNumberMap[account.account_name] = account.account_number
+      accountIdMap[account.account_name] = account.id
+    }
+  )
 
   // Helper function to convert category objects to ordered arrays
-  const convertToOrderedArray = (categoryObject: { [key: string]: number }): Array<{ accountNumber: string; accountName: string; amount: number }> => {
+  const convertToOrderedArray = (categoryObject: {
+    [key: string]: number
+  }): Array<{ accountNumber: string; accountName: string; amount: number }> => {
     return Object.entries(categoryObject)
       .map(([accountName, amount]) => ({
         accountNumber: accountNumberMap[accountName] || '9999',
         accountName,
-        amount
+        amount,
       }))
       .sort((a, b) => a.accountNumber.localeCompare(b.accountNumber))
   }
 
   // Get journal entries for the PERIOD (Profit & Loss) - only transactions within date range
-  const { data: periodJournalEntries, error: periodJournalError } = await supabase
-    .from('journal_entries')
-    .select(`
+  const { data: periodJournalEntries, error: periodJournalError } =
+    await supabase
+      .from('journal_entries')
+      .select(
+        `
       id,
       date,
       description,
@@ -120,12 +181,13 @@ export async function generateFinancialReportsDoubleEntry({
           account_number
         )
       )
-    `)
-    .eq('company_id', companyId)
-    .gte('date', fromDate)
-    .lte('date', toDate)
-    .eq('is_reversed', false)
-    .order('date')
+    `
+      )
+      .eq('company_id', companyId)
+      .gte('date', fromDate)
+      .lte('date', toDate)
+      .eq('is_reversed', false)
+      .order('date')
 
   if (periodJournalError) {
     console.error('Error fetching period journal entries:', periodJournalError)
@@ -133,9 +195,11 @@ export async function generateFinancialReportsDoubleEntry({
   }
 
   // Get journal entries for BALANCE SHEET - all transactions up to the end date (cumulative)
-  const { data: balanceSheetJournalEntries, error: balanceSheetJournalError } = await supabase
-    .from('journal_entries')
-    .select(`
+  const { data: balanceSheetJournalEntries, error: balanceSheetJournalError } =
+    await supabase
+      .from('journal_entries')
+      .select(
+        `
       id,
       date,
       description,
@@ -152,14 +216,18 @@ export async function generateFinancialReportsDoubleEntry({
           account_number
         )
       )
-    `)
-    .eq('company_id', companyId)
-    .lte('date', toDate)
-    .eq('is_reversed', false)
-    .order('date')
+    `
+      )
+      .eq('company_id', companyId)
+      .lte('date', toDate)
+      .eq('is_reversed', false)
+      .order('date')
 
   if (balanceSheetJournalError) {
-    console.error('Error fetching balance sheet journal entries:', balanceSheetJournalError)
+    console.error(
+      'Error fetching balance sheet journal entries:',
+      balanceSheetJournalError
+    )
     throw new Error('Failed to fetch balance sheet journal entries')
   }
 
@@ -258,7 +326,7 @@ export async function generateFinancialReportsDoubleEntry({
   const operatingExpensesByCategory: { [key: string]: number } = {}
   const otherIncomeByCategory: { [key: string]: number } = {}
   const otherExpensesByCategory: { [key: string]: number } = {}
-  
+
   let totalRevenue = 0
   let totalCostOfGoodsSold = 0
   let totalOperatingExpenses = 0
@@ -269,7 +337,7 @@ export async function generateFinancialReportsDoubleEntry({
   Object.entries(periodActivity).forEach(([accountName, activity]) => {
     const accountType = accountTypeMap[accountName]
     const accountNumber = accountNumberMap[accountName]
-    
+
     if (accountType === 'revenue' && activity > 0) {
       revenueByCategory[accountName] = activity
       totalRevenue += activity
@@ -289,7 +357,7 @@ export async function generateFinancialReportsDoubleEntry({
   const assetsByCategory: { [key: string]: number } = {}
   const liabilitiesByCategory: { [key: string]: number } = {}
   const equityByCategory: { [key: string]: number } = {}
-  
+
   let totalAssets = 0
   let totalLiabilities = 0
   let totalEquity = 0
@@ -297,7 +365,7 @@ export async function generateFinancialReportsDoubleEntry({
   // Process balance sheet accounts from CUMULATIVE balances
   Object.entries(balanceSheetBalances).forEach(([accountName, balance]) => {
     const accountType = accountTypeMap[accountName]
-    
+
     if (accountType === 'asset' && balance > 0) {
       assetsByCategory[accountName] = balance
       totalAssets += balance
@@ -311,16 +379,36 @@ export async function generateFinancialReportsDoubleEntry({
   })
 
   // Add payables/receivables to balance sheet
-  const openReceivables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'receivable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
-  const openPayables = payables?.filter((p: { type: string; status: string; amount: number }) => p.type === 'payable' && p.status === 'open').reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0) || 0
-  
+  const openReceivables =
+    payables
+      ?.filter(
+        (p: { type: string; status: string; amount: number }) =>
+          p.type === 'receivable' && p.status === 'open'
+      )
+      .reduce(
+        (sum: number, p: { amount: number }) => sum + Number(p.amount),
+        0
+      ) || 0
+  const openPayables =
+    payables
+      ?.filter(
+        (p: { type: string; status: string; amount: number }) =>
+          p.type === 'payable' && p.status === 'open'
+      )
+      .reduce(
+        (sum: number, p: { amount: number }) => sum + Number(p.amount),
+        0
+      ) || 0
+
   if (openReceivables > 0) {
-    assetsByCategory['Accounts Receivable'] = (assetsByCategory['Accounts Receivable'] || 0) + openReceivables
+    assetsByCategory['Accounts Receivable'] =
+      (assetsByCategory['Accounts Receivable'] || 0) + openReceivables
     totalAssets += openReceivables
   }
-  
+
   if (openPayables > 0) {
-    liabilitiesByCategory['Accounts Payable'] = (liabilitiesByCategory['Accounts Payable'] || 0) + openPayables
+    liabilitiesByCategory['Accounts Payable'] =
+      (liabilitiesByCategory['Accounts Payable'] || 0) + openPayables
     totalLiabilities += openPayables
   }
 
@@ -328,10 +416,11 @@ export async function generateFinancialReportsDoubleEntry({
   const grossProfit = totalRevenue - totalCostOfGoodsSold
   const operatingIncome = grossProfit - totalOperatingExpenses
   const netIncome = operatingIncome + totalOtherIncome - totalOtherExpenses
-  
+
   // Add net income to retained earnings in equity (cumulative)
   if (netIncome !== 0) {
-    equityByCategory['Retained Earnings'] = (equityByCategory['Retained Earnings'] || 0) + netIncome
+    equityByCategory['Retained Earnings'] =
+      (equityByCategory['Retained Earnings'] || 0) + netIncome
     totalEquity += netIncome
   }
 
@@ -340,7 +429,7 @@ export async function generateFinancialReportsDoubleEntry({
   const operatingActivitiesByCategory: { [key: string]: number } = {}
   const investingActivitiesByCategory: { [key: string]: number } = {}
   const financingActivitiesByCategory: { [key: string]: number } = {}
-  
+
   let totalOperatingActivities = netIncome // Start with net income
   let totalInvestingActivities = 0
   let totalFinancingActivities = 0
@@ -355,10 +444,14 @@ export async function generateFinancialReportsDoubleEntry({
   Object.entries(periodActivity).forEach(([accountName, activity]) => {
     const accountType = accountTypeMap[accountName]
     const accountNumber = accountNumberMap[accountName]
-    
+
     if (accountType === 'asset') {
       // Changes in current assets (excluding cash)
-      if (accountName !== 'Cash' && accountNumber >= '1000' && accountNumber < '2000') {
+      if (
+        accountName !== 'Cash' &&
+        accountNumber >= '1000' &&
+        accountNumber < '2000'
+      ) {
         operatingActivitiesByCategory[`Change in ${accountName}`] = -activity
         totalOperatingActivities -= activity
       } else if (accountNumber >= '1400' && accountNumber < '2000') {
@@ -378,32 +471,51 @@ export async function generateFinancialReportsDoubleEntry({
       }
     } else if (accountType === 'equity') {
       // Equity transactions - financing activities
-      if (['Owner\'s Capital', 'Owner\'s Draws', 'Common Stock', 'Paid-in Capital'].includes(accountName)) {
+      if (
+        [
+          "Owner's Capital",
+          "Owner's Draws",
+          'Common Stock',
+          'Paid-in Capital',
+        ].includes(accountName)
+      ) {
         financingActivitiesByCategory[accountName] = activity
         totalFinancingActivities += activity
       }
     }
   })
 
-  const netCashFlow = totalOperatingActivities + totalInvestingActivities + totalFinancingActivities
+  const netCashFlow =
+    totalOperatingActivities +
+    totalInvestingActivities +
+    totalFinancingActivities
 
   // Generate Trial Balance (using balance sheet balances)
-  const trialBalanceAccounts = chartOfAccounts?.map((account: { account_name: string; account_type: string; account_number: string }) => {
-    const debit = balanceSheetDebits[account.account_name] || 0
-    const credit = balanceSheetCredits[account.account_name] || 0
-    const balance = balanceSheetBalances[account.account_name] || 0
+  const trialBalanceAccounts =
+    chartOfAccounts?.map(
+      (account: {
+        account_name: string
+        account_type: string
+        account_number: string
+      }) => {
+        const debit = balanceSheetDebits[account.account_name] || 0
+        const credit = balanceSheetCredits[account.account_name] || 0
+        const balance = balanceSheetBalances[account.account_name] || 0
 
-    return {
-      accountName: account.account_name,
-      accountType: account.account_type,
-      debit,
-      credit,
-      balance
-    }
-  }) || []
+        return {
+          accountName: account.account_name,
+          accountType: account.account_type,
+          debit,
+          credit,
+          balance,
+        }
+      }
+    ) || []
 
   // Convert trial balance to the expected format
-  const trialBalanceAccountsMap: { [account: string]: { debits: number; credits: number; balance: number } } = {}
+  const trialBalanceAccountsMap: {
+    [account: string]: { debits: number; credits: number; balance: number }
+  } = {}
   let totalDebits = 0
   let totalCredits = 0
 
@@ -411,14 +523,16 @@ export async function generateFinancialReportsDoubleEntry({
     trialBalanceAccountsMap[account.accountName] = {
       debits: account.debit,
       credits: account.credit,
-      balance: account.balance
+      balance: account.balance,
     }
     totalDebits += account.debit
     totalCredits += account.credit
   })
 
   // Generate General Ledger (using balance sheet data)
-  const generalLedgerAccountsMap: { [account: string]: { debits: number; credits: number; balance: number } } = {}
+  const generalLedgerAccountsMap: {
+    [account: string]: { debits: number; credits: number; balance: number }
+  } = {}
   let glTotalDebits = 0
   let glTotalCredits = 0
 
@@ -430,7 +544,7 @@ export async function generateFinancialReportsDoubleEntry({
     generalLedgerAccountsMap[accountName] = {
       debits,
       credits,
-      balance
+      balance,
     }
     glTotalDebits += debits
     glTotalCredits += credits
@@ -450,7 +564,7 @@ export async function generateFinancialReportsDoubleEntry({
       totalOtherExpenses,
       grossProfit,
       operatingIncome,
-      netIncome
+      netIncome,
     },
     balanceSheet: {
       assets: convertToOrderedArray(assetsByCategory),
@@ -458,7 +572,7 @@ export async function generateFinancialReportsDoubleEntry({
       equity: convertToOrderedArray(equityByCategory),
       totalAssets,
       totalLiabilities,
-      totalEquity
+      totalEquity,
     },
     cashFlow: {
       operatingActivities: convertToOrderedArray(operatingActivitiesByCategory),
@@ -467,30 +581,30 @@ export async function generateFinancialReportsDoubleEntry({
       totalOperatingActivities,
       totalInvestingActivities,
       totalFinancingActivities,
-      netCashFlow
+      netCashFlow,
     },
     generalLedger: {
       accounts: Object.entries(generalLedgerAccountsMap)
         .map(([accountName, data]) => ({
           accountNumber: accountNumberMap[accountName] || '9999',
           accountName,
-          ...data
+          ...data,
         }))
         .sort((a, b) => a.accountNumber.localeCompare(b.accountNumber)),
       totalDebits: glTotalDebits,
-      totalCredits: glTotalCredits
+      totalCredits: glTotalCredits,
     },
     trialBalance: {
       accounts: Object.entries(trialBalanceAccountsMap)
         .map(([accountName, data]) => ({
           accountNumber: accountNumberMap[accountName] || '9999',
           accountName,
-          ...data
+          ...data,
         }))
         .sort((a, b) => a.accountNumber.localeCompare(b.accountNumber)),
       totalDebits,
       totalCredits,
-      isBalanced: Math.abs(totalDebits - totalCredits) < 0.01
-    }
+      isBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
+    },
   }
-} 
+}

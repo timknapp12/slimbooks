@@ -6,15 +6,15 @@ export async function GET() {
   try {
     // Use regular client for auth check
     const supabase = await createClient()
-    
+
     // Get the authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Use service role client to get user and company data (bypasses RLS)
@@ -25,7 +25,8 @@ export async function GET() {
 
     const { data: userData, error: userError } = await serviceSupabase
       .from('users')
-      .select(`
+      .select(
+        `
         id,
         email,
         role,
@@ -40,7 +41,8 @@ export async function GET() {
           ein,
           accounting_method
         )
-      `)
+      `
+      )
       .eq('id', user.id)
       .single()
 
@@ -72,7 +74,7 @@ export async function GET() {
       hasUser: true,
       hasCompany: true,
       user: userData,
-      companyUsers: companyUsers || []
+      companyUsers: companyUsers || [],
     })
   } catch (error) {
     console.error('Settings data API error:', error)

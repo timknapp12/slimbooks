@@ -4,21 +4,28 @@ import { cookies } from 'next/headers'
 export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
+
   // Handle missing or placeholder environment variables
-  if (!supabaseUrl || !supabaseAnonKey || 
-      supabaseUrl === 'your_supabase_url_here' || 
-      supabaseAnonKey === 'your_supabase_anon_key_here') {
+  if (
+    !supabaseUrl ||
+    !supabaseAnonKey ||
+    supabaseUrl === 'your_supabase_url_here' ||
+    supabaseAnonKey === 'your_supabase_anon_key_here'
+  ) {
     // Return a mock client for development/build purposes
     return {
       auth: {
-        getUser: () => Promise.resolve({ data: { user: null }, error: null })
+        getUser: () => Promise.resolve({ data: { user: null }, error: null }),
       },
       from: () => ({
-        select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: null, error: null }),
+          }),
+        }),
         insert: () => Promise.resolve({ error: null }),
-        update: () => ({ eq: () => Promise.resolve({ error: null }) })
-      })
+        update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      }),
     } as unknown as ReturnType<typeof createServerClient>
   }
 

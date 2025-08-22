@@ -8,9 +8,7 @@ export default function DashboardLayout({
 }) {
   return (
     <CompanyProvider>
-      <DashboardContent>
-        {children}
-      </DashboardContent>
+      <DashboardContent>{children}</DashboardContent>
     </CompanyProvider>
   )
 }

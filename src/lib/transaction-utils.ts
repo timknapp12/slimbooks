@@ -7,15 +7,18 @@ export const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
-export const getCategoriesByType = (type: string, chartOfAccounts: ChartOfAccount[]) => {
+export const getCategoriesByType = (
+  type: string,
+  chartOfAccounts: ChartOfAccount[]
+) => {
   const typeMapping: { [key: string]: string } = {
-    'income': 'revenue',
-    'expense': 'expense',
-    'asset': 'asset',
-    'liability': 'liability',
-    'equity': 'equity'
+    income: 'revenue',
+    expense: 'expense',
+    asset: 'asset',
+    liability: 'liability',
+    equity: 'equity',
   }
-  
+
   const accountType = typeMapping[type] || type
   return chartOfAccounts
     .filter(account => account.account_type === accountType)
@@ -42,9 +45,11 @@ export const getTransactionTypeColor = (type: string) => {
 }
 
 export const getAmountColor = (type: string) => {
-  return type === 'income' || type === 'asset' ? 'text-green-600' : 'text-red-600'
+  return type === 'income' || type === 'asset'
+    ? 'text-green-600'
+    : 'text-red-600'
 }
 
 export const getAmountSign = (type: string) => {
   return type === 'income' || type === 'asset' ? '+' : '-'
-} 
+}

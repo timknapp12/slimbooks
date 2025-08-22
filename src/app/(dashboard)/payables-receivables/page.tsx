@@ -7,10 +7,36 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, CheckCircle } from 'lucide-react'
@@ -40,7 +66,7 @@ export default function PayablesReceivablesPage() {
     type: 'payable' as 'payable' | 'receivable',
     name: '',
     amount: '',
-    due_date: ''
+    due_date: '',
   })
 
   const fetchItems = useCallback(async () => {
@@ -80,22 +106,22 @@ export default function PayablesReceivablesPage() {
     try {
       if (!currentCompany) return
 
-      const { error } = await supabase
-        .from('payables_receivables')
-        .insert({
-          company_id: currentCompany.id,
-          type: formData.type,
-          name: formData.name,
-          amount: parseFloat(formData.amount),
-          due_date: formData.due_date,
-          status: 'open'
-        })
+      const { error } = await supabase.from('payables_receivables').insert({
+        company_id: currentCompany.id,
+        type: formData.type,
+        name: formData.name,
+        amount: parseFloat(formData.amount),
+        due_date: formData.due_date,
+        status: 'open',
+      })
 
       if (error) throw error
 
       toast({
         title: 'Success',
-        description: `${formData.type === 'payable' ? 'Payable' : 'Receivable'} added successfully`,
+        description: `${
+          formData.type === 'payable' ? 'Payable' : 'Receivable'
+        } added successfully`,
       })
 
       setIsAddDialogOpen(false)
@@ -103,11 +129,12 @@ export default function PayablesReceivablesPage() {
         type: 'payable',
         name: '',
         amount: '',
-        due_date: ''
+        due_date: '',
       })
       fetchItems()
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to add item'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to add item'
       toast({
         title: 'Error',
         description: errorMessage,
@@ -132,7 +159,8 @@ export default function PayablesReceivablesPage() {
 
       fetchItems()
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update status'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update status'
       toast({
         title: 'Error',
         description: errorMessage,
@@ -148,15 +176,19 @@ export default function PayablesReceivablesPage() {
     }).format(amount)
   }
 
-
-
   const payables = items.filter(item => item.type === 'payable')
   const receivables = items.filter(item => item.type === 'receivable')
   const openPayables = payables.filter(item => item.status === 'open')
   const openReceivables = receivables.filter(item => item.status === 'open')
 
-  const totalOpenPayables = openPayables.reduce((sum, item) => sum + item.amount, 0)
-  const totalOpenReceivables = openReceivables.reduce((sum, item) => sum + item.amount, 0)
+  const totalOpenPayables = openPayables.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  )
+  const totalOpenReceivables = openReceivables.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  )
 
   if (loading) {
     return <div>Loading...</div>
@@ -166,7 +198,9 @@ export default function PayablesReceivablesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payables & Receivables</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Payables & Receivables
+          </h1>
           <p className="text-muted-foreground">
             Track what you owe and what others owe you
           </p>
@@ -188,13 +222,22 @@ export default function PayablesReceivablesPage() {
             <form onSubmit={handleAdd} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="type">Type</Label>
-                <Select value={formData.type} onValueChange={(value: 'payable' | 'receivable') => setFormData({ ...formData, type: value })}>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: 'payable' | 'receivable') =>
+                    setFormData({ ...formData, type: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="payable">Payable (Money I owe)</SelectItem>
-                    <SelectItem value="receivable">Receivable (Money owed to me)</SelectItem>
+                    <SelectItem value="payable">
+                      Payable (Money I owe)
+                    </SelectItem>
+                    <SelectItem value="receivable">
+                      Receivable (Money owed to me)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -203,7 +246,9 @@ export default function PayablesReceivablesPage() {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="e.g., Invoice #123, Vendor payment"
                   required
                 />
@@ -215,7 +260,9 @@ export default function PayablesReceivablesPage() {
                   type="number"
                   step="0.01"
                   value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, amount: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -225,7 +272,9 @@ export default function PayablesReceivablesPage() {
                   id="due_date"
                   type="date"
                   value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, due_date: e.target.value })
+                  }
                 />
               </div>
               <Button type="submit" className="w-full">
@@ -247,14 +296,17 @@ export default function PayablesReceivablesPage() {
               {formatCurrency(totalOpenPayables)}
             </div>
             <p className="text-sm text-muted-foreground">
-              {openPayables.length} open item{openPayables.length !== 1 ? 's' : ''}
+              {openPayables.length} open item
+              {openPayables.length !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-green-600">Total Open Receivables</CardTitle>
+            <CardTitle className="text-green-600">
+              Total Open Receivables
+            </CardTitle>
             <CardDescription>Money owed to you</CardDescription>
           </CardHeader>
           <CardContent>
@@ -262,7 +314,8 @@ export default function PayablesReceivablesPage() {
               {formatCurrency(totalOpenReceivables)}
             </div>
             <p className="text-sm text-muted-foreground">
-              {openReceivables.length} open item{openReceivables.length !== 1 ? 's' : ''}
+              {openReceivables.length} open item
+              {openReceivables.length !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
@@ -298,24 +351,35 @@ export default function PayablesReceivablesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payables.map((item) => (
-                    <TableRow key={item.id} className={isOverdue(item.due_date, item.status) ? 'bg-red-50' : ''}>
+                  {payables.map(item => (
+                    <TableRow
+                      key={item.id}
+                      className={
+                        isOverdue(item.due_date, item.status) ? 'bg-red-50' : ''
+                      }
+                    >
                       <TableCell>{item.name}</TableCell>
                       <TableCell className="font-medium text-red-600">
                         {formatCurrency(item.amount)}
                       </TableCell>
                       <TableCell>
-                        {item.due_date ? formatDate(item.due_date) : 'No due date'}
+                        {item.due_date
+                          ? formatDate(item.due_date)
+                          : 'No due date'}
                         {isOverdue(item.due_date, item.status) && (
-                          <span className="ml-2 text-xs text-red-600 font-medium">OVERDUE</span>
+                          <span className="ml-2 text-xs text-red-600 font-medium">
+                            OVERDUE
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.status === 'open' 
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.status === 'open'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
                           {item.status}
                         </span>
                       </TableCell>
@@ -364,24 +428,35 @@ export default function PayablesReceivablesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {receivables.map((item) => (
-                    <TableRow key={item.id} className={isOverdue(item.due_date, item.status) ? 'bg-red-50' : ''}>
+                  {receivables.map(item => (
+                    <TableRow
+                      key={item.id}
+                      className={
+                        isOverdue(item.due_date, item.status) ? 'bg-red-50' : ''
+                      }
+                    >
                       <TableCell>{item.name}</TableCell>
                       <TableCell className="font-medium text-green-600">
                         {formatCurrency(item.amount)}
                       </TableCell>
                       <TableCell>
-                        {item.due_date ? formatDate(item.due_date) : 'No due date'}
+                        {item.due_date
+                          ? formatDate(item.due_date)
+                          : 'No due date'}
                         {isOverdue(item.due_date, item.status) && (
-                          <span className="ml-2 text-xs text-red-600 font-medium">OVERDUE</span>
+                          <span className="ml-2 text-xs text-red-600 font-medium">
+                            OVERDUE
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.status === 'open' 
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            item.status === 'open'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
                           {item.status}
                         </span>
                       </TableCell>
@@ -403,7 +478,8 @@ export default function PayablesReceivablesPage() {
               </Table>
               {receivables.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  No receivables found. Add your first receivable to get started.
+                  No receivables found. Add your first receivable to get
+                  started.
                 </div>
               )}
             </CardContent>

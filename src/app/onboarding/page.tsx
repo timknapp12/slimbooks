@@ -11,7 +11,13 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { FormWrapper } from '@/components/form-wrapper'
 import { AddressForm } from '@/components/address-form'
@@ -22,7 +28,7 @@ import { optionalAddressSchema, einSchema } from '@/lib/address-validation'
 const onboardingSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
   ein: einSchema,
-  address: optionalAddressSchema
+  address: optionalAddressSchema,
 })
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>
@@ -43,15 +49,17 @@ export default function OnboardingPage() {
         streetAddress: '',
         city: '',
         state: '',
-        zipCode: ''
-      }
-    }
+        zipCode: '',
+      },
+    },
   })
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) {
         router.push('/login')
         return
@@ -62,7 +70,7 @@ export default function OnboardingPage() {
       } else {
         setEmailVerified(true)
       }
-      
+
       setCheckingAuth(false)
     }
 
@@ -71,8 +79,10 @@ export default function OnboardingPage() {
 
   const handleSubmit = async (data: OnboardingFormData) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
       if (!user) {
         router.push('/login')
         return
@@ -82,7 +92,8 @@ export default function OnboardingPage() {
       if (!user.email_confirmed_at) {
         toast({
           title: 'Email verification required',
-          description: 'Please verify your email address before setting up your company.',
+          description:
+            'Please verify your email address before setting up your company.',
           variant: 'destructive',
         })
         return
@@ -119,7 +130,10 @@ export default function OnboardingPage() {
 
       router.push('/dashboard')
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create company profile'
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to create company profile'
       toast({
         title: 'Error',
         description: errorMessage,
@@ -129,7 +143,11 @@ export default function OnboardingPage() {
   }
 
   if (checkingAuth) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    )
   }
 
   if (!emailVerified) {
@@ -139,13 +157,15 @@ export default function OnboardingPage() {
           <CardHeader>
             <CardTitle>Email Verification Required</CardTitle>
             <CardDescription>
-              Please check your email and click the verification link before setting up your company.
+              Please check your email and click the verification link before
+              setting up your company.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center space-y-4">
               <p className="text-sm text-muted-foreground">
-                We sent a verification link to your email address. Click the link to verify your account and continue with setup.
+                We sent a verification link to your email address. Click the
+                link to verify your account and continue with setup.
               </p>
               <Button onClick={() => router.push('/login')} variant="outline">
                 Back to Login
@@ -168,18 +188,20 @@ export default function OnboardingPage() {
         </CardHeader>
         <CardContent>
           <FormWrapper>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="space-y-6"
+            >
               <div className="space-y-2">
                 <Label htmlFor="companyName">Company Name *</Label>
-                <Input
-                  id="companyName"
-                  {...form.register('companyName')}
-                />
+                <Input id="companyName" {...form.register('companyName')} />
                 {form.formState.errors.companyName && (
-                  <p className="text-sm text-red-500">{form.formState.errors.companyName.message}</p>
+                  <p className="text-sm text-red-500">
+                    {form.formState.errors.companyName.message}
+                  </p>
                 )}
               </div>
-              
+
               <EINInput
                 control={form.control}
                 name="ein"
@@ -188,7 +210,9 @@ export default function OnboardingPage() {
               />
 
               <div className="space-y-2">
-                <Label className="text-base font-medium">Business Address (Optional)</Label>
+                <Label className="text-base font-medium">
+                  Business Address (Optional)
+                </Label>
                 <AddressForm
                   control={form.control}
                   namePrefix="address"
@@ -196,9 +220,9 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting ? 'Creating...' : 'Complete Setup'}

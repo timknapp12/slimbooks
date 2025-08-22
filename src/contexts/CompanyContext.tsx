@@ -1,6 +1,13 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Company {
@@ -43,7 +50,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const fetchUserCompanies = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) {
         setLoading(false)
         return
@@ -52,14 +61,16 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       // Fetch user's companies with company details
       const { data: userCompaniesData, error } = await supabase
         .from('user_companies')
-        .select(`
+        .select(
+          `
           id,
           user_id,
           company_id,
           role,
           is_default,
           company:companies(*)
-        `)
+        `
+        )
         .eq('user_id', user.id)
 
       if (error) {
@@ -113,13 +124,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     setCurrentCompany: setCurrentCompanyWithRefresh,
     refreshCompanies,
     loading,
-    isRefreshing
+    isRefreshing,
   }
 
   return (
-    <CompanyContext.Provider value={value}>
-      {children}
-    </CompanyContext.Provider>
+    <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>
   )
 }
 
@@ -129,4 +138,4 @@ export function useCompany() {
     throw new Error('useCompany must be used within a CompanyProvider')
   }
   return context
-} 
+}
