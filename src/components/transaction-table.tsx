@@ -19,6 +19,7 @@ interface TransactionTableProps {
   onSaveTransaction: () => Promise<boolean>
   onDeleteTransaction: (transactionId: string) => Promise<boolean>
   onUpdateEditingTransaction: (updates: Partial<Transaction>) => void
+  onPermanentlyDeleteTransaction?: (transactionId: string) => Promise<boolean>
   showActions?: boolean
   className?: string
   isDeletedSection?: boolean
@@ -34,6 +35,7 @@ export function TransactionTable({
   onSaveTransaction,
   onDeleteTransaction,
   onUpdateEditingTransaction,
+  onPermanentlyDeleteTransaction,
   showActions = true,
   className = '',
   isDeletedSection
@@ -119,8 +121,17 @@ export function TransactionTable({
                 {isEditing ? (
                   <Select 
                     value={editingTransaction.type || ''} 
-                    onValueChange={(value: 'income' | 'expense' | 'asset' | 'liability' | 'equity') => onUpdateEditingTransaction({ type: value })}
-                  >
+                     onValueChange={(value: 'income' | 'expense' | 'asset' | 'liability' | 'equity') => {
+                       const categoriesForType = getCategoriesByType(value);
+                       const currentCategory = editingTransaction.category;
+                       const isCategoryValidForType = categoriesForType.includes(currentCategory || '');
+                       
+                       onUpdateEditingTransaction({ 
+                         type: value,
+                         // Reset category if current category is not valid for new type
+                         category: isCategoryValidForType ? currentCategory : categoriesForType[0] || ''
+                       });
+                     }}                  >
                     <SelectTrigger className="w-[100px] h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
@@ -186,22 +197,38 @@ export function TransactionTable({
                           <Edit2 className="h-4 w-4 text-blue-600" />
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onDeleteTransaction(transaction.id)}
-                        className={`h-8 px-3 ${isDeletedSection 
-                          ? 'hover:bg-green-50 hover:border-green-300 text-green-600 border-green-200' 
-                          : 'hover:bg-red-50 hover:border-red-300'
-                        }`}
-                      >
-                        {isDeletedSection ? (
-                          <span className="text-green-600">Restore</span>
-                        ) : (
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        )}
-                      </Button>
-                    </div>
+                       {isDeletedSection ? (
+                         <div className="flex gap-2">
+                           <Button
+                             size="sm"
+                             variant="outline"
+                             onClick={() => onDeleteTransaction(transaction.id)}
+                             className="h-8 px-3 hover:bg-green-50 hover:border-green-300 text-green-600 border-green-200"
+                           >
+                             <span className="text-green-600">Restore</span>
+                           </Button>
+                           {onPermanentlyDeleteTransaction && (
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               onClick={() => onPermanentlyDeleteTransaction(transaction.id)}
+                               className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 text-red-600 border-red-200"
+                               title="Delete permanently"
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           )}
+                         </div>
+                       ) : (
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           onClick={() => onDeleteTransaction(transaction.id)}
+                           className="h-8 px-3 hover:bg-red-50 hover:border-red-300"
+                         >
+                           <Trash2 className="h-4 w-4 text-red-600" />
+                         </Button>
+                       )}                    </div>
                   )}
                 </TableCell>
               )}
