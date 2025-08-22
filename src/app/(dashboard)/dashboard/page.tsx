@@ -568,9 +568,10 @@ export default function DashboardPage() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                         </div>
-                       </TableCell>
-                     </TableRow>                  )
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
                 })}
               </TableBody>
             </Table>
