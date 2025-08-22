@@ -3,11 +3,39 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
-import { DollarSign, TrendingUp, TrendingDown, Users, Plus, FileText, Download, Trash2 } from 'lucide-react'
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Plus,
+  FileText,
+  Download,
+  Trash2,
+} from 'lucide-react'
 import { formatDate } from '@/lib/date-utils'
 import { useCompany } from '@/contexts/CompanyContext'
 import { generateFinancialReportPDF, downloadPDF } from '@/lib/pdf-generator'
@@ -16,7 +44,12 @@ import type { ReportData } from '@/lib/report-generator-double-entry'
 import { TransactionForm } from '@/components/transaction-form'
 import { TransactionTable } from '@/components/transaction-table'
 import { useTransactions } from '@/hooks/use-transactions'
-import { formatCurrency, getTransactionTypeColor, getAmountColor, getAmountSign } from '@/lib/transaction-utils'
+import {
+  formatCurrency,
+  getTransactionTypeColor,
+  getAmountColor,
+  getAmountSign,
+} from '@/lib/transaction-utils'
 import type { Transaction, TransactionFormData } from '@/types/transaction'
 
 interface DashboardStats {
@@ -44,14 +77,16 @@ export default function DashboardPage() {
     openPayables: 0,
     openReceivables: 0,
     recentTransactions: [],
-    deletedTransactions: []
+    deletedTransactions: [],
   })
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [reportModalOpen, setReportModalOpen] = useState(false)
-  const [currentReport, setCurrentReport] = useState<'pl' | 'bs' | 'cf' | null>(null)
+  const [currentReport, setCurrentReport] = useState<'pl' | 'bs' | 'cf' | null>(
+    null
+  )
   const [reportDateRange, setReportDateRange] = useState({
     fromDate: new Date().getFullYear() + '-01-01',
-    toDate: new Date().getFullYear() + '-12-31'
+    toDate: new Date().getFullYear() + '-12-31',
   })
   const [reportData, setReportData] = useState<DashboardReportData | null>(null)
   const [reportLoading, setReportLoading] = useState(false)
@@ -71,21 +106,25 @@ export default function DashboardPage() {
     addTransaction,
     deleteTransaction,
     restoreTransaction,
+    permanentlyDeleteTransaction,
+    clearAllDeletedTransactions,
     startEditing,
     cancelEditing,
     saveTransaction,
-    setEditingTransaction
+    setEditingTransaction,
   } = useTransactions({ supabase, currentCompany })
 
   // Calculate dashboard stats from transactions
   const calculateStats = useCallback(() => {
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
-    
+
     const monthlyTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.date)
-      return transactionDate.getMonth() === currentMonth && 
-             transactionDate.getFullYear() === currentYear
+      return (
+        transactionDate.getMonth() === currentMonth &&
+        transactionDate.getFullYear() === currentYear
+      )
     })
 
     const totalIncome = monthlyTransactions
@@ -113,7 +152,7 @@ export default function DashboardPage() {
       openPayables,
       openReceivables,
       recentTransactions,
-      deletedTransactions
+      deletedTransactions,
     })
   }, [transactions, deletedTransactions])
 
@@ -122,7 +161,9 @@ export default function DashboardPage() {
     calculateStats()
   }, [transactions, calculateStats])
 
-  const handleAddTransaction = async (formData: TransactionFormData): Promise<boolean> => {
+  const handleAddTransaction = async (
+    formData: TransactionFormData
+  ): Promise<boolean> => {
     const success = await addTransaction(formData)
     if (success) {
       calculateStats()
@@ -130,7 +171,9 @@ export default function DashboardPage() {
     return success || false
   }
 
-  const handleDeleteTransaction = async (transactionId: string): Promise<boolean> => {
+  const handleDeleteTransaction = async (
+    transactionId: string
+  ): Promise<boolean> => {
     const success = await deleteTransaction(transactionId)
     if (success) {
       calculateStats()
@@ -150,48 +193,50 @@ export default function DashboardPage() {
     setCurrentReport(reportType)
     setReportModalOpen(true)
   }
+  const fetchReportData = useCallback(
+    async (reportType: 'pl' | 'bs' | 'cf') => {
+      if (!currentCompany) return
 
-  const fetchReportData = useCallback(async (reportType: 'pl' | 'bs' | 'cf') => {
-    if (!currentCompany) return
+      try {
+        setReportLoading(true)
+        const reportData = await generateFinancialReportsDoubleEntry({
+          supabase,
+          companyId: currentCompany.id,
+          fromDate: reportDateRange.fromDate,
+          toDate: reportDateRange.toDate,
+        })
 
-    try {
-      setReportLoading(true)
-      const reportData = await generateFinancialReportsDoubleEntry({
-        supabase,
-        companyId: currentCompany.id,
-        fromDate: reportDateRange.fromDate,
-        toDate: reportDateRange.toDate
-      })
+        const reportTitles = {
+          pl: 'Profit & Loss Statement',
+          bs: 'Balance Sheet',
+          cf: 'Cash Flow Statement',
+        }
 
-      const reportTitles = {
-        pl: 'Profit & Loss Statement',
-        bs: 'Balance Sheet',
-        cf: 'Cash Flow Statement'
+        const reportPeriods = {
+          pl: `${reportDateRange.fromDate} to ${reportDateRange.toDate}`,
+          bs: `As of ${reportDateRange.toDate}`,
+          cf: `${reportDateRange.fromDate} to ${reportDateRange.toDate}`,
+        }
+
+        setReportData({
+          type: reportType,
+          title: reportTitles[reportType],
+          period: reportPeriods[reportType],
+          data: reportData,
+        })
+      } catch (error) {
+        console.error('Error generating report:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to generate report',
+          variant: 'destructive',
+        })
+      } finally {
+        setReportLoading(false)
       }
-
-      const reportPeriods = {
-        pl: `${reportDateRange.fromDate} to ${reportDateRange.toDate}`,
-        bs: `As of ${reportDateRange.toDate}`,
-        cf: `${reportDateRange.fromDate} to ${reportDateRange.toDate}`
-      }
-
-      setReportData({
-        type: reportType,
-        title: reportTitles[reportType],
-        period: reportPeriods[reportType],
-        data: reportData
-      })
-    } catch (error) {
-      console.error('Error generating report:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to generate report',
-        variant: 'destructive',
-      })
-    } finally {
-      setReportLoading(false)
-    }
-  }, [currentCompany, supabase, reportDateRange, toast])
+    },
+    [currentCompany, supabase, reportDateRange, toast]
+  )
 
   // Auto-update report when date range changes
   useEffect(() => {
@@ -210,9 +255,14 @@ export default function DashboardPage() {
       const pdfReportData: ReportData = reportData.data
 
       // Determine report type for PDF generation
-      const reportType = reportData.type === 'pl' ? 'profit-loss' : 
-                        reportData.type === 'bs' ? 'balance-sheet' : 
-                        reportData.type === 'cf' ? 'cash-flow' : 'all'
+      const reportType =
+        reportData.type === 'pl'
+          ? 'profit-loss'
+          : reportData.type === 'bs'
+          ? 'balance-sheet'
+          : reportData.type === 'cf'
+          ? 'cash-flow'
+          : 'all'
 
       // Generate PDF
       const pdfBytes = await generateFinancialReportPDF({
@@ -221,11 +271,15 @@ export default function DashboardPage() {
         dateTo: reportDateRange.toDate,
         accountingMethod: 'cash',
         reportData: pdfReportData,
-        reportType
+        reportType,
       })
 
       // Create filename
-      const filename = `${reportData.title.toLowerCase().replace(/\s+/g, '-')}-${reportDateRange.fromDate}-to-${reportDateRange.toDate}.pdf`
+      const filename = `${reportData.title
+        .toLowerCase()
+        .replace(/\s+/g, '-')}-${reportDateRange.fromDate}-to-${
+        reportDateRange.toDate
+      }.pdf`
 
       // Download PDF
       await downloadPDF(pdfBytes, filename)
@@ -275,7 +329,9 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Expenses
+            </CardTitle>
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -301,7 +357,9 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Receivables</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Open Receivables
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -318,7 +376,11 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${stats.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div
+              className={`text-2xl font-bold ${
+                stats.netIncome >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
               {formatCurrency(stats.netIncome)}
             </div>
             <p className="text-xs text-muted-foreground">This month</p>
@@ -328,19 +390,34 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="flex gap-4">
-        <Button onClick={() => setIsAddDialogOpen(true)} className="flex items-center gap-2">
+        <Button
+          onClick={() => setIsAddDialogOpen(true)}
+          className="flex items-center gap-2"
+        >
           <Plus className="h-4 w-4" />
           Add Transaction
         </Button>
-        <Button variant="outline" onClick={() => openReportModal('pl')} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => openReportModal('pl')}
+          className="flex items-center gap-2"
+        >
           <FileText className="h-4 w-4" />
           Profit & Loss
         </Button>
-        <Button variant="outline" onClick={() => openReportModal('bs')} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => openReportModal('bs')}
+          className="flex items-center gap-2"
+        >
           <FileText className="h-4 w-4" />
           Balance Sheet
         </Button>
-        <Button variant="outline" onClick={() => openReportModal('cf')} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => openReportModal('cf')}
+          className="flex items-center gap-2"
+        >
           <FileText className="h-4 w-4" />
           Cash Flow
         </Button>
@@ -365,7 +442,9 @@ export default function DashboardPage() {
               onCancelEditing={cancelEditing}
               onSaveTransaction={handleSaveTransaction}
               onDeleteTransaction={handleDeleteTransaction}
-              onUpdateEditingTransaction={(updates) => setEditingTransaction(prev => ({ ...prev, ...updates }))}
+              onUpdateEditingTransaction={updates =>
+                setEditingTransaction(prev => ({ ...prev, ...updates }))
+              }
               showActions={true}
             />
           ) : (
@@ -383,23 +462,38 @@ export default function DashboardPage() {
       {stats.deletedTransactions.length > 0 && (
         <Card className="opacity-75 bg-gray-50 border-gray-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-600">
-              <Trash2 className="h-5 w-5 text-gray-500" />
-              Deleted Transactions
-              <span className="text-sm text-gray-500 font-normal">
-                ({stats.deletedTransactions.length})
-              </span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-gray-600">
+                <Trash2 className="h-5 w-5 text-gray-500" />
+                Deleted Transactions
+                <span className="text-sm text-gray-500 font-normal">
+                  ({stats.deletedTransactions.length})
+                </span>
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllDeletedTransactions}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                title="Clear all deleted transactions permanently"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Clear All
+              </Button>
+            </div>
             <CardDescription className="text-gray-600">
               Recently deleted transactions that can be restored
               {stats.deletedTransactions.length === 2 && (
                 <span className="block mt-1 text-blue-600 font-medium">
-                  ℹ️ You have 2 deleted transactions. You can delete 1 more before the oldest one is permanently removed.
+                  ℹ️ You have 2 deleted transactions. You can delete 1 more
+                  before the oldest one is permanently removed.
                 </span>
               )}
               {stats.deletedTransactions.length >= 3 && (
                 <span className="block mt-1 text-amber-600 font-medium">
-                  ⚠️ You have reached the limit of 3 deleted transactions. The oldest one will be permanently deleted when you delete another transaction.
+                  ⚠️ You have reached the limit of 3 deleted transactions. The
+                  oldest one will be permanently deleted when you delete another
+                  transaction.
                 </span>
               )}
             </CardDescription>
@@ -412,14 +506,19 @@ export default function DashboardPage() {
                   <TableHead className="text-gray-600">Description</TableHead>
                   <TableHead className="text-gray-600">Category</TableHead>
                   <TableHead className="text-gray-600">Type</TableHead>
-                  <TableHead className="text-right text-gray-600">Amount</TableHead>
+                  <TableHead className="text-right text-gray-600">
+                    Amount
+                  </TableHead>
                   <TableHead className="text-gray-600">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stats.deletedTransactions.map((transaction) => {
+                {stats.deletedTransactions.map(transaction => {
                   return (
-                    <TableRow key={transaction.id} className="opacity-75 bg-gray-50 hover:bg-gray-100">
+                    <TableRow
+                      key={transaction.id}
+                      className="opacity-75 bg-gray-50 hover:bg-gray-100"
+                    >
                       <TableCell className="align-middle text-gray-600">
                         {formatDate(transaction.date)}
                       </TableCell>
@@ -430,25 +529,47 @@ export default function DashboardPage() {
                         {transaction.category}
                       </TableCell>
                       <TableCell className="align-middle">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium opacity-75 ${getTransactionTypeColor(transaction.type)}`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium opacity-75 ${getTransactionTypeColor(
+                            transaction.type
+                          )}`}
+                        >
                           {transaction.type}
                         </span>
                       </TableCell>
                       <TableCell className="text-right align-middle">
-                        <span className={`font-medium opacity-75 ${getAmountColor(transaction.type)}`}>
-                          {getAmountSign(transaction.type)}{formatCurrency(transaction.amount)}
+                        <span
+                          className={`font-medium opacity-75 ${getAmountColor(
+                            transaction.type
+                          )}`}
+                        >
+                          {getAmountSign(transaction.type)}
+                          {formatCurrency(transaction.amount)}
                         </span>
                       </TableCell>
                       <TableCell className="align-middle">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => restoreTransaction(transaction.id)}
-                          className="h-8 px-3 hover:bg-green-50 hover:border-green-300 text-green-600 border-green-200"
-                        >
-                          <span className="text-green-600">Restore</span>
-                        </Button>
-                      </TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => restoreTransaction(transaction.id)}
+                            className="h-8 px-3 hover:bg-green-50 hover:border-green-300 text-green-600 border-green-200"
+                          >
+                            <span className="text-green-600">Restore</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              permanentlyDeleteTransaction(transaction.id)
+                            }
+                            className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 text-red-600 border-red-200"
+                            title="Delete permanently"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>{' '}
                     </TableRow>
                   )
                 })}
@@ -478,7 +599,7 @@ export default function DashboardPage() {
                 </DialogDescription>
               </div>
               {reportData && (
-                <Button 
+                <Button
                   onClick={downloadReportPDF}
                   variant="outline"
                   size="sm"
@@ -491,29 +612,45 @@ export default function DashboardPage() {
               )}
             </div>
           </DialogHeader>
-          
+
           {/* Date Range Controls */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <label htmlFor="fromDate" className="block text-sm font-medium mb-1">From Date</label>
+              <label
+                htmlFor="fromDate"
+                className="block text-sm font-medium mb-1"
+              >
+                From Date
+              </label>
               <input
                 id="fromDate"
                 type="date"
                 value={reportDateRange.fromDate}
-                onChange={(e) => {
-                  setReportDateRange({ ...reportDateRange, fromDate: e.target.value })
+                onChange={e => {
+                  setReportDateRange({
+                    ...reportDateRange,
+                    fromDate: e.target.value,
+                  })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
               />
             </div>
             <div>
-              <label htmlFor="toDate" className="block text-sm font-medium mb-1">To Date</label>
+              <label
+                htmlFor="toDate"
+                className="block text-sm font-medium mb-1"
+              >
+                To Date
+              </label>
               <input
                 id="toDate"
                 type="date"
                 value={reportDateRange.toDate}
-                onChange={(e) => {
-                  setReportDateRange({ ...reportDateRange, toDate: e.target.value })
+                onChange={e => {
+                  setReportDateRange({
+                    ...reportDateRange,
+                    toDate: e.target.value,
+                  })
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
               />
@@ -530,74 +667,119 @@ export default function DashboardPage() {
               {reportData.type === 'pl' && (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Revenue</h3>
-                  {reportData.data.profitLoss.revenue.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.data.profitLoss.revenue.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="text-green-600 font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="text-green-600 font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Revenue</span>
-                      <span className="text-green-600">{formatCurrency(reportData.data.profitLoss.totalRevenue)}</span>
+                      <span className="text-green-600">
+                        {formatCurrency(
+                          reportData.data.profitLoss.totalRevenue
+                        )}
+                      </span>
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-semibold mb-4 mt-6">Cost of Goods Sold</h3>
-                  {reportData.data.profitLoss.costOfGoodsSold.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4 mt-6">
+                    Cost of Goods Sold
+                  </h3>
+                  {reportData.data.profitLoss.costOfGoodsSold.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="text-red-600 font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="text-red-600 font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total COGS</span>
-                      <span className="text-red-600">{formatCurrency(reportData.data.profitLoss.totalCostOfGoodsSold)}</span>
+                      <span className="text-red-600">
+                        {formatCurrency(
+                          reportData.data.profitLoss.totalCostOfGoodsSold
+                        )}
+                      </span>
                     </div>
                   </div>
 
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Gross Profit</span>
-                      <span className="text-green-600">{formatCurrency(reportData.data.profitLoss.grossProfit)}</span>
+                      <span className="text-green-600">
+                        {formatCurrency(reportData.data.profitLoss.grossProfit)}
+                      </span>
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-semibold mb-4 mt-6">Operating Expenses</h3>
-                  {reportData.data.profitLoss.operatingExpenses.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4 mt-6">
+                    Operating Expenses
+                  </h3>
+                  {reportData.data.profitLoss.operatingExpenses.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="text-red-600 font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="text-red-600 font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Operating Expenses</span>
-                      <span className="text-red-600">{formatCurrency(reportData.data.profitLoss.totalOperatingExpenses)}</span>
+                      <span className="text-red-600">
+                        {formatCurrency(
+                          reportData.data.profitLoss.totalOperatingExpenses
+                        )}
+                      </span>
                     </div>
                   </div>
 
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Operating Income</span>
-                      <span className="text-green-600">{formatCurrency(reportData.data.profitLoss.operatingIncome)}</span>
+                      <span className="text-green-600">
+                        {formatCurrency(
+                          reportData.data.profitLoss.operatingIncome
+                        )}
+                      </span>
                     </div>
                   </div>
 
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Net Income</span>
-                      <span className="text-green-600">{formatCurrency(reportData.data.profitLoss.netIncome)}</span>
+                      <span className="text-green-600">
+                        {formatCurrency(reportData.data.profitLoss.netIncome)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -606,53 +788,88 @@ export default function DashboardPage() {
               {reportData.type === 'bs' && (
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Assets</h3>
-                  {reportData.data.balanceSheet.assets.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.data.balanceSheet.assets.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Assets</span>
-                      <span>{formatCurrency(reportData.data.balanceSheet.totalAssets)}</span>
+                      <span>
+                        {formatCurrency(
+                          reportData.data.balanceSheet.totalAssets
+                        )}
+                      </span>
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-semibold mb-4 mt-6">Liabilities</h3>
-                  {reportData.data.balanceSheet.liabilities.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4 mt-6">
+                    Liabilities
+                  </h3>
+                  {reportData.data.balanceSheet.liabilities.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Liabilities</span>
-                      <span>{formatCurrency(reportData.data.balanceSheet.totalLiabilities)}</span>
+                      <span>
+                        {formatCurrency(
+                          reportData.data.balanceSheet.totalLiabilities
+                        )}
+                      </span>
                     </div>
                   </div>
 
                   <h3 className="text-lg font-semibold mb-4 mt-6">Equity</h3>
-                  {reportData.data.balanceSheet.equity.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.data.balanceSheet.equity.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Equity</span>
-                      <span>{formatCurrency(reportData.data.balanceSheet.totalEquity)}</span>
+                      <span>
+                        {formatCurrency(
+                          reportData.data.balanceSheet.totalEquity
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -660,59 +877,122 @@ export default function DashboardPage() {
 
               {reportData.type === 'cf' && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Operating Activities</h3>
-                  {reportData.data.cashFlow.operatingActivities.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Operating Activities
+                  </h3>
+                  {reportData.data.cashFlow.operatingActivities.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className={item.amount >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(item.amount)}</span>
+                      <span
+                        className={
+                          item.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Operating Activities</span>
-                      <span className={reportData.data.cashFlow.totalOperatingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(reportData.data.cashFlow.totalOperatingActivities)}
+                      <span
+                        className={
+                          reportData.data.cashFlow.totalOperatingActivities >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(
+                          reportData.data.cashFlow.totalOperatingActivities
+                        )}
                       </span>
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-semibold mb-4 mt-6">Investing Activities</h3>
-                  {reportData.data.cashFlow.investingActivities.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4 mt-6">
+                    Investing Activities
+                  </h3>
+                  {reportData.data.cashFlow.investingActivities.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className={item.amount >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(item.amount)}</span>
+                      <span
+                        className={
+                          item.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Investing Activities</span>
-                      <span className={reportData.data.cashFlow.totalInvestingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(reportData.data.cashFlow.totalInvestingActivities)}
+                      <span
+                        className={
+                          reportData.data.cashFlow.totalInvestingActivities >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(
+                          reportData.data.cashFlow.totalInvestingActivities
+                        )}
                       </span>
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-semibold mb-4 mt-6">Financing Activities</h3>
-                  {reportData.data.cashFlow.financingActivities.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4 mt-6">
+                    Financing Activities
+                  </h3>
+                  {reportData.data.cashFlow.financingActivities.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className={item.amount >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(item.amount)}</span>
+                      <span
+                        className={
+                          item.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Financing Activities</span>
-                      <span className={reportData.data.cashFlow.totalFinancingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(reportData.data.cashFlow.totalFinancingActivities)}
+                      <span
+                        className={
+                          reportData.data.cashFlow.totalFinancingActivities >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(
+                          reportData.data.cashFlow.totalFinancingActivities
+                        )}
                       </span>
                     </div>
                   </div>
@@ -720,7 +1000,13 @@ export default function DashboardPage() {
                   <div className="border-t-2 pt-4 mt-6">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Net Cash Flow</span>
-                      <span className={reportData.data.cashFlow.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      <span
+                        className={
+                          reportData.data.cashFlow.netCashFlow >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }
+                      >
                         {formatCurrency(reportData.data.cashFlow.netCashFlow)}
                       </span>
                     </div>
