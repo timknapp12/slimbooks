@@ -460,13 +460,13 @@ export default function DashboardPage() {
 
       {/* Deleted Transactions Section */}
       {stats.deletedTransactions.length > 0 && (
-        <Card className="opacity-75 bg-gray-50 border-gray-200">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-gray-600">
-                <Trash2 className="h-5 w-5 text-gray-500" />
+              <CardTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
                 Deleted Transactions
-                <span className="text-sm text-gray-500 font-normal">
+                <span className="text-sm font-normal text-muted-foreground">
                   ({stats.deletedTransactions.length})
                 </span>
               </CardTitle>
@@ -474,23 +474,23 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={clearAllDeletedTransactions}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-500/10 border-red-500/20"
                 title="Clear all deleted transactions permanently"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 Clear All
               </Button>
             </div>
-            <CardDescription className="text-gray-600">
+            <CardDescription>
               Recently deleted transactions that can be restored
               {stats.deletedTransactions.length === 2 && (
-                <span className="block mt-1 text-blue-600 font-medium">
+                <span className="block mt-1 text-blue-600 dark:text-blue-400 font-medium">
                   ℹ️ You have 2 deleted transactions. You can delete 1 more
                   before the oldest one is permanently removed.
                 </span>
               )}
               {stats.deletedTransactions.length >= 3 && (
-                <span className="block mt-1 text-amber-600 font-medium">
+                <span className="block mt-1 text-amber-600 dark:text-amber-400 font-medium">
                   ⚠️ You have reached the limit of 3 deleted transactions. The
                   oldest one will be permanently deleted when you delete another
                   transaction.
@@ -501,36 +501,31 @@ export default function DashboardPage() {
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-100">
-                  <TableHead className="text-gray-600">Date</TableHead>
-                  <TableHead className="text-gray-600">Description</TableHead>
-                  <TableHead className="text-gray-600">Category</TableHead>
-                  <TableHead className="text-gray-600">Type</TableHead>
-                  <TableHead className="text-right text-gray-600">
-                    Amount
-                  </TableHead>
-                  <TableHead className="text-gray-600">Actions</TableHead>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {stats.deletedTransactions.map(transaction => {
                   return (
-                    <TableRow
-                      key={transaction.id}
-                      className="opacity-75 bg-gray-50 hover:bg-gray-100"
-                    >
-                      <TableCell className="align-middle text-gray-600">
+                    <TableRow key={transaction.id}>
+                      <TableCell className="align-middle">
                         {formatDate(transaction.date)}
                       </TableCell>
-                      <TableCell className="align-middle text-gray-600">
+                      <TableCell className="align-middle">
                         {transaction.description}
                       </TableCell>
-                      <TableCell className="align-middle text-gray-600">
+                      <TableCell className="align-middle">
                         {transaction.category}
                       </TableCell>
                       <TableCell className="align-middle">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium opacity-75 ${getTransactionTypeColor(
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTransactionTypeColor(
                             transaction.type
                           )}`}
                         >
@@ -539,7 +534,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-right align-middle">
                         <span
-                          className={`font-medium opacity-75 ${getAmountColor(
+                          className={`font-medium ${getAmountColor(
                             transaction.type
                           )}`}
                         >
@@ -553,9 +548,11 @@ export default function DashboardPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => restoreTransaction(transaction.id)}
-                            className="h-8 px-3 hover:bg-green-50 hover:border-green-300 text-green-600 border-green-200"
+                            className="h-8 px-3 hover:bg-green-500/10 hover:border-green-500/30 text-green-600 dark:text-green-400 border-green-500/20"
                           >
-                            <span className="text-green-600">Restore</span>
+                            <span className="text-green-600 dark:text-green-400">
+                              Restore
+                            </span>
                           </Button>
                           <Button
                             size="sm"
@@ -563,7 +560,7 @@ export default function DashboardPage() {
                             onClick={() =>
                               permanentlyDeleteTransaction(transaction.id)
                             }
-                            className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-300 text-red-600 border-red-200"
+                            className="h-8 w-8 p-0 hover:bg-red-500/10 hover:border-red-500/30 text-red-600 dark:text-red-400 border-red-500/20"
                             title="Delete permanently"
                           >
                             <Trash2 className="h-4 w-4" />

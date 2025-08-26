@@ -327,13 +327,13 @@ export default function TransactionsPage() {
 
       {/* Deleted Transactions Section */}
       {deletedTransactions.length > 0 && (
-        <Card className="opacity-75 bg-gray-50 border-gray-200">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-gray-600">
-                <Trash2 className="h-5 w-5 text-gray-500" />
+              <CardTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
                 Deleted Transactions
-                <span className="text-sm text-gray-500 font-normal">
+                <span className="text-sm font-normal text-muted-foreground">
                   ({deletedTransactions.length})
                 </span>
               </CardTitle>
@@ -341,23 +341,23 @@ export default function TransactionsPage() {
                 variant="outline"
                 size="sm"
                 onClick={clearAllDeletedTransactions}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-500/10 border-red-500/20"
                 title="Clear all deleted transactions permanently"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
                 Clear All
               </Button>
             </div>
-            <CardDescription className="text-gray-600">
+            <CardDescription>
               Recently deleted transactions that can be restored
               {deletedTransactions.length === 2 && (
-                <span className="block mt-1 text-blue-600 font-medium">
+                <span className="block mt-1 text-blue-600 dark:text-blue-400 font-medium">
                   ℹ️ You have 2 deleted transactions. You can delete 1 more
                   before the oldest one is permanently removed.
                 </span>
               )}
               {deletedTransactions.length >= 3 && (
-                <span className="block mt-1 text-amber-600 font-medium">
+                <span className="block mt-1 text-amber-600 dark:text-amber-400 font-medium">
                   ⚠️ You have reached the limit of 3 deleted transactions. The
                   oldest one will be permanently deleted when you delete another
                   transaction.
@@ -378,7 +378,7 @@ export default function TransactionsPage() {
               onPermanentlyDeleteTransaction={permanentlyDeleteTransaction}
               onUpdateEditingTransaction={() => {}}
               showActions={true}
-              className="opacity-75"
+              className=""
               isDeletedSection={true}
             />
           </CardContent>

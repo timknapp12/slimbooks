@@ -32,22 +32,22 @@ export const getAllCategories = (chartOfAccounts: ChartOfAccount[]) => {
 export const getTransactionTypeColor = (type: string) => {
   switch (type) {
     case 'income':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-500/20 text-green-700 dark:text-green-400'
     case 'expense':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-500/20 text-red-700 dark:text-red-400'
     case 'asset':
-      return 'bg-purple-100 text-purple-800'
+      return 'bg-purple-500/20 text-purple-700 dark:text-purple-400'
     case 'liability':
-      return 'bg-orange-100 text-orange-800'
+      return 'bg-orange-500/20 text-orange-700 dark:text-orange-400'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-gray-500/20 text-gray-700 dark:text-gray-400'
   }
 }
 
 export const getAmountColor = (type: string) => {
   return type === 'income' || type === 'asset'
-    ? 'text-green-600'
-    : 'text-red-600'
+    ? 'text-green-600 dark:text-green-400'
+    : 'text-red-600 dark:text-red-400'
 }
 
 export const getAmountSign = (type: string) => {

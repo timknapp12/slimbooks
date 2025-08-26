@@ -355,11 +355,13 @@ export default function PayablesReceivablesPage() {
                     <TableRow
                       key={item.id}
                       className={
-                        isOverdue(item.due_date, item.status) ? 'bg-red-50' : ''
+                        isOverdue(item.due_date, item.status)
+                          ? 'bg-red-500/10'
+                          : ''
                       }
                     >
                       <TableCell>{item.name}</TableCell>
-                      <TableCell className="font-medium text-red-600">
+                      <TableCell className="font-medium text-red-600 dark:text-red-400">
                         {formatCurrency(item.amount)}
                       </TableCell>
                       <TableCell>
@@ -367,7 +369,7 @@ export default function PayablesReceivablesPage() {
                           ? formatDate(item.due_date)
                           : 'No due date'}
                         {isOverdue(item.due_date, item.status) && (
-                          <span className="ml-2 text-xs text-red-600 font-medium">
+                          <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-medium">
                             OVERDUE
                           </span>
                         )}
@@ -376,8 +378,8 @@ export default function PayablesReceivablesPage() {
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             item.status === 'open'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-green-100 text-green-800'
+                              ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
+                              : 'bg-green-500/20 text-green-700 dark:text-green-400'
                           }`}
                         >
                           {item.status}
