@@ -4,8 +4,20 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { formatDateForDB } from '@/lib/date-utils'
 import type { TransactionFormData, ChartOfAccount } from '@/types/transaction'
 
@@ -28,14 +40,14 @@ export function TransactionForm({
   initialData,
   title = 'Add Transaction',
   description = 'Add a new transaction to your records',
-  submitButtonText = 'Add Transaction'
+  submitButtonText = 'Add Transaction',
 }: TransactionFormProps) {
   const [formData, setFormData] = useState<TransactionFormData>({
     date: formatDateForDB(new Date()),
     amount: '',
     type: 'expense',
     category: '',
-    description: ''
+    description: '',
   })
 
   // Reset form when dialog opens/closes or initial data changes
@@ -46,7 +58,7 @@ export function TransactionForm({
         amount: initialData?.amount || '',
         type: initialData?.type || 'expense',
         category: initialData?.category || '',
-        description: initialData?.description || ''
+        description: initialData?.description || '',
       })
     }
   }, [open, initialData])
@@ -55,18 +67,18 @@ export function TransactionForm({
   useEffect(() => {
     if (formData.type) {
       const typeMapping: { [key: string]: string } = {
-        'income': 'revenue',
-        'expense': 'expense',
-        'asset': 'asset',
-        'liability': 'liability',
-        'equity': 'equity'
+        income: 'revenue',
+        expense: 'expense',
+        asset: 'asset',
+        liability: 'liability',
+        equity: 'equity',
       }
-      
+
       const accountType = typeMapping[formData.type] || formData.type
       const validCategories = chartOfAccounts
         .filter(account => account.account_type === accountType)
         .map(account => account.account_name)
-      
+
       if (!validCategories.includes(formData.category)) {
         setFormData(prev => ({ ...prev, category: '' }))
       }
@@ -75,13 +87,13 @@ export function TransactionForm({
 
   const getCategoriesByType = (type: string) => {
     const typeMapping: { [key: string]: string } = {
-      'income': 'revenue',
-      'expense': 'expense',
-      'asset': 'asset',
-      'liability': 'liability',
-      'equity': 'equity'
+      income: 'revenue',
+      expense: 'expense',
+      asset: 'asset',
+      liability: 'liability',
+      equity: 'equity',
     }
-    
+
     const accountType = typeMapping[type] || type
     return chartOfAccounts
       .filter(account => account.account_type === accountType)
@@ -99,7 +111,7 @@ export function TransactionForm({
         amount: '',
         type: 'expense',
         category: '',
-        description: ''
+        description: '',
       })
     }
   }
@@ -109,9 +121,7 @@ export function TransactionForm({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {description}
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -120,7 +130,7 @@ export function TransactionForm({
               id="date"
               type="date"
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              onChange={e => setFormData({ ...formData, date: e.target.value })}
               required
             />
           </div>
@@ -131,16 +141,20 @@ export function TransactionForm({
               type="number"
               step="0.01"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              onChange={e =>
+                setFormData({ ...formData, amount: e.target.value })
+              }
               placeholder="$0.00"
               required
             />
           </div>
           <div>
             <Label htmlFor="type">Type *</Label>
-            <Select 
-              value={formData.type} 
-              onValueChange={(value: 'income' | 'expense' | 'asset' | 'liability' | 'equity') => setFormData({ ...formData, type: value, category: '' })}
+            <Select
+              value={formData.type}
+              onValueChange={(
+                value: 'income' | 'expense' | 'asset' | 'liability' | 'equity'
+              ) => setFormData({ ...formData, type: value, category: '' })}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -156,9 +170,11 @@ export function TransactionForm({
           </div>
           <div>
             <Label htmlFor="category">Category *</Label>
-            <Select 
-              value={formData.category} 
-              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            <Select
+              value={formData.category}
+              onValueChange={value =>
+                setFormData({ ...formData, category: value })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -177,7 +193,9 @@ export function TransactionForm({
             <Input
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={e =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="Notes"
             />
           </div>
@@ -185,9 +203,9 @@ export function TransactionForm({
             <Button type="submit" className="flex-1">
               {submitButtonText}
             </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
             >
               Cancel
@@ -197,4 +215,4 @@ export function TransactionForm({
       </DialogContent>
     </Dialog>
   )
-} 
+}

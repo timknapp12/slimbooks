@@ -41,4 +41,4 @@ export interface TransactionFormData {
   type: 'income' | 'expense' | 'asset' | 'liability' | 'equity'
   category: string
   description: string
-} 
+}

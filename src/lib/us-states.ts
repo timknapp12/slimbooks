@@ -54,16 +54,62 @@ export const US_STATES: USState[] = [
   { code: 'WA', name: 'Washington' },
   { code: 'WV', name: 'West Virginia' },
   { code: 'WI', name: 'Wisconsin' },
-  { code: 'WY', name: 'Wyoming' }
+  { code: 'WY', name: 'Wyoming' },
 ]
 
 // Export just the state codes for validation
 export const US_STATE_CODES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL',
-  'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME',
-  'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH',
-  'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI',
-  'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  'AL',
+  'AK',
+  'AZ',
+  'AR',
+  'CA',
+  'CO',
+  'CT',
+  'DE',
+  'DC',
+  'FL',
+  'GA',
+  'HI',
+  'ID',
+  'IL',
+  'IN',
+  'IA',
+  'KS',
+  'KY',
+  'LA',
+  'ME',
+  'MD',
+  'MA',
+  'MI',
+  'MN',
+  'MS',
+  'MO',
+  'MT',
+  'NE',
+  'NV',
+  'NH',
+  'NJ',
+  'NM',
+  'NY',
+  'NC',
+  'ND',
+  'OH',
+  'OK',
+  'OR',
+  'PA',
+  'RI',
+  'SC',
+  'SD',
+  'TN',
+  'TX',
+  'UT',
+  'VT',
+  'VA',
+  'WA',
+  'WV',
+  'WI',
+  'WY',
 ] as const
 
 // Helper function to get state name by code
@@ -73,5 +119,7 @@ export function getStateNameByCode(code: string): string | undefined {
 
 // Helper function to get state code by name
 export function getStateCodeByName(name: string): string | undefined {
-  return US_STATES.find(state => state.name.toLowerCase() === name.toLowerCase())?.code
+  return US_STATES.find(
+    state => state.name.toLowerCase() === name.toLowerCase()
+  )?.code
 }

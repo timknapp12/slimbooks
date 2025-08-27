@@ -5,13 +5,32 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Upload, Filter, Building2, Calendar, Trash2 } from 'lucide-react'
 import { CSVUpload } from '@/components/csv-upload'
 import { BankConnect } from '@/components/bank-connect'
-import { formatDate, getFirstDayOfMonth, getLastDayOfMonth, getFirstDayOfYear, getLastDayOfYear, getCurrentYear } from '@/lib/date-utils'
+import {
+  formatDate,
+  getFirstDayOfMonth,
+  getLastDayOfMonth,
+  getFirstDayOfYear,
+  getLastDayOfYear,
+  getCurrentYear,
+} from '@/lib/date-utils'
 import { useCompany } from '@/contexts/CompanyContext'
 import { TransactionForm } from '@/components/transaction-form'
 import { TransactionTable } from '@/components/transaction-table'
@@ -44,10 +63,12 @@ export default function TransactionsPage() {
     addTransaction,
     deleteTransaction,
     restoreTransaction,
+    permanentlyDeleteTransaction,
+    clearAllDeletedTransactions,
     startEditing,
     cancelEditing,
     saveTransaction,
-    setEditingTransaction
+    setEditingTransaction,
   } = useTransactions({ supabase, currentCompany })
 
   // Filter transactions based on current filters
@@ -66,7 +87,7 @@ export default function TransactionsPage() {
     const transactionDate = new Date(transaction.date)
     const fromDate = new Date(dateFrom)
     const toDate = new Date(dateTo)
-    
+
     if (transactionDate < fromDate || transactionDate > toDate) {
       return false
     }
@@ -74,20 +95,26 @@ export default function TransactionsPage() {
     return true
   })
 
-  const handleAddTransaction = async (formData: TransactionFormData): Promise<boolean> => {
-    return await addTransaction(formData) || false
+  const handleAddTransaction = async (
+    formData: TransactionFormData
+  ): Promise<boolean> => {
+    return (await addTransaction(formData)) || false
   }
 
-  const handleDeleteTransaction = async (transactionId: string): Promise<boolean> => {
-    return await deleteTransaction(transactionId) || false
+  const handleDeleteTransaction = async (
+    transactionId: string
+  ): Promise<boolean> => {
+    return (await deleteTransaction(transactionId)) || false
   }
 
-  const handleRestoreTransaction = async (transactionId: string): Promise<boolean> => {
-    return await restoreTransaction(transactionId) || false
+  const handleRestoreTransaction = async (
+    transactionId: string
+  ): Promise<boolean> => {
+    return (await restoreTransaction(transactionId)) || false
   }
 
   const handleSaveTransaction = async (): Promise<boolean> => {
-    return await saveTransaction() || false
+    return (await saveTransaction()) || false
   }
 
   const toggleYTDView = () => {
@@ -108,7 +135,9 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Transactions Register</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Transactions Register
+        </h1>
         <p className="text-muted-foreground">
           Manage and track all your financial transactions
         </p>
@@ -116,21 +145,32 @@ export default function TransactionsPage() {
 
       {/* Action Buttons */}
       <div className="flex gap-4">
-        <Button onClick={() => setIsAddDialogOpen(true)} className="flex items-center gap-2">
+        <Button
+          onClick={() => setIsAddDialogOpen(true)}
+          className="flex items-center gap-2"
+        >
           <Plus className="h-4 w-4" />
           Add Transaction
         </Button>
-        <Button variant="outline" onClick={() => setIsCSVUploadOpen(true)} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setIsCSVUploadOpen(true)}
+          className="flex items-center gap-2"
+        >
           <Upload className="h-4 w-4" />
           Import CSV
         </Button>
-        <Button variant="outline" onClick={() => setIsBankConnectOpen(true)} className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setIsBankConnectOpen(true)}
+          className="flex items-center gap-2"
+        >
           <Building2 className="h-4 w-4" />
           Connect Bank
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={() => setIsFilterVisible(!isFilterVisible)} 
+        <Button
+          variant="outline"
+          onClick={() => setIsFilterVisible(!isFilterVisible)}
           className="flex items-center gap-2"
         >
           <Filter className="h-4 w-4" />
@@ -167,24 +207,30 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <Label htmlFor="category-filter">Category</Label>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <Select
+                  value={filterCategory}
+                  onValueChange={setFilterCategory}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Categories</SelectItem>
-                    {filterType === 'all' 
-                      ? getAllCategories(chartOfAccounts).map((category: string) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))
-                      : getCategoriesByType(filterType, chartOfAccounts).map((category: string) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))
-                    }
+                    {filterType === 'all'
+                      ? getAllCategories(chartOfAccounts).map(
+                          (category: string) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          )
+                        )
+                      : getCategoriesByType(filterType, chartOfAccounts).map(
+                          (category: string) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          )
+                        )}
                   </SelectContent>
                 </Select>
               </div>
@@ -194,7 +240,7 @@ export default function TransactionsPage() {
                   id="date-from"
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
+                  onChange={e => setDateFrom(e.target.value)}
                 />
               </div>
               <div>
@@ -203,17 +249,21 @@ export default function TransactionsPage() {
                   id="date-to"
                   type="date"
                   value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
+                  onChange={e => setDateTo(e.target.value)}
                 />
               </div>
             </div>
             <div className="flex gap-2 mt-4">
-              <Button variant="outline" onClick={toggleYTDView} className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={toggleYTDView}
+                className="flex items-center gap-2"
+              >
                 <Calendar className="h-4 w-4" />
                 {isYTDView ? 'Current Month' : 'Year to Date'}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setFilterType('all')
                   setFilterCategory('all')
@@ -234,7 +284,8 @@ export default function TransactionsPage() {
         <CardHeader>
           <CardTitle>Transactions</CardTitle>
           <CardDescription>
-            {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''} found
+            {filteredTransactions.length} transaction
+            {filteredTransactions.length !== 1 ? 's' : ''} found
             {filterType !== 'all' && ` for ${filterType}`}
             {filterCategory !== 'all' && ` in ${filterCategory}`}
             {` from ${formatDate(dateFrom)} to ${formatDate(dateTo)}`}
@@ -257,13 +308,15 @@ export default function TransactionsPage() {
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground">
-                {transactions.length === 0 
-                  ? 'No transactions yet' 
-                  : 'No transactions match your current filters'
-                }
+                {transactions.length === 0
+                  ? 'No transactions yet'
+                  : 'No transactions match your current filters'}
               </p>
               {transactions.length === 0 && (
-                <Button onClick={() => setIsAddDialogOpen(true)} className="mt-2">
+                <Button
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="mt-2"
+                >
                   Add Your First Transaction
                 </Button>
               )}
@@ -274,25 +327,40 @@ export default function TransactionsPage() {
 
       {/* Deleted Transactions Section */}
       {deletedTransactions.length > 0 && (
-        <Card className="opacity-75 bg-gray-50 border-gray-200">
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-600">
-              <Trash2 className="h-5 w-5 text-gray-500" />
-              Deleted Transactions
-              <span className="text-sm text-gray-500 font-normal">
-                ({deletedTransactions.length})
-              </span>
-            </CardTitle>
-            <CardDescription className="text-gray-600">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5" />
+                Deleted Transactions
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({deletedTransactions.length})
+                </span>
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearAllDeletedTransactions}
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-500/10 border-red-500/20"
+                title="Clear all deleted transactions permanently"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Clear All
+              </Button>
+            </div>
+            <CardDescription>
               Recently deleted transactions that can be restored
               {deletedTransactions.length === 2 && (
-                <span className="block mt-1 text-blue-600 font-medium">
-                  ℹ️ You have 2 deleted transactions. You can delete 1 more before the oldest one is permanently removed.
+                <span className="block mt-1 text-blue-600 dark:text-blue-400 font-medium">
+                  ℹ️ You have 2 deleted transactions. You can delete 1 more
+                  before the oldest one is permanently removed.
                 </span>
               )}
               {deletedTransactions.length >= 3 && (
-                <span className="block mt-1 text-amber-600 font-medium">
-                  ⚠️ You have reached the limit of 3 deleted transactions. The oldest one will be permanently deleted when you delete another transaction.
+                <span className="block mt-1 text-amber-600 dark:text-amber-400 font-medium">
+                  ⚠️ You have reached the limit of 3 deleted transactions. The
+                  oldest one will be permanently deleted when you delete another
+                  transaction.
                 </span>
               )}
             </CardDescription>
@@ -307,9 +375,10 @@ export default function TransactionsPage() {
               onCancelEditing={() => {}}
               onSaveTransaction={() => Promise.resolve(false)}
               onDeleteTransaction={handleRestoreTransaction} // Use restore instead of delete
+              onPermanentlyDeleteTransaction={permanentlyDeleteTransaction}
               onUpdateEditingTransaction={() => {}}
               showActions={true}
-              className="opacity-75"
+              className=""
               isDeletedSection={true}
             />
           </CardContent>

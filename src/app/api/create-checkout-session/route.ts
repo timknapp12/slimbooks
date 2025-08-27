@@ -6,11 +6,16 @@ export async function POST(request: NextRequest) {
   try {
     const { priceId } = await request.json()
     console.log('Creating checkout session with priceId:', priceId)
-    console.log('Using Stripe secret key:', process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...')
-    
+    console.log(
+      'Using Stripe secret key:',
+      process.env.STRIPE_SECRET_KEY?.substring(0, 20) + '...'
+    )
+
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -24,7 +29,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!userCompany?.company_id) {
-      return NextResponse.json({ error: 'No default company found' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'No default company found' },
+        { status: 400 }
+      )
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -48,10 +56,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ sessionId: session.id })
   } catch (error: unknown) {
     console.error('Error creating checkout session:', error)
-    const errorMessage = error instanceof Error ? error.message : 'An error occurred'
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    )
+    const errorMessage =
+      error instanceof Error ? error.message : 'An error occurred'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

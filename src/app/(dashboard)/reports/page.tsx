@@ -5,24 +5,46 @@ import { useEffect, useState, useCallback } from 'react'
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableRow, TableHeader, TableHead } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  TableHeader,
+  TableHead,
+} from '@/components/ui/table'
 import { Download } from 'lucide-react'
 import { generateFinancialReportPDF, downloadPDF } from '@/lib/pdf-generator'
-import { generateFinancialReportsDoubleEntry, type ReportData } from '@/lib/report-generator-double-entry'
-import { 
-  formatDate, 
-  getCurrentYear, 
-  getCurrentMonth, 
+import {
+  generateFinancialReportsDoubleEntry,
+  type ReportData,
+} from '@/lib/report-generator-double-entry'
+import {
+  formatDate,
+  getCurrentYear,
+  getCurrentMonth,
   getFirstDayOfYear,
   getLastDayOfYear,
   getFirstDayOfSpecificMonth,
   getLastDayOfSpecificMonth,
-  getYearOptions
+  getYearOptions,
 } from '@/lib/date-utils'
 import { useCompany } from '@/contexts/CompanyContext'
 
@@ -41,7 +63,7 @@ export default function ReportsPage() {
       totalOtherExpenses: 0,
       grossProfit: 0,
       operatingIncome: 0,
-      netIncome: 0
+      netIncome: 0,
     },
     balanceSheet: {
       assets: [],
@@ -49,7 +71,7 @@ export default function ReportsPage() {
       equity: [],
       totalAssets: 0,
       totalLiabilities: 0,
-      totalEquity: 0
+      totalEquity: 0,
     },
     cashFlow: {
       operatingActivities: [],
@@ -58,19 +80,19 @@ export default function ReportsPage() {
       totalOperatingActivities: 0,
       totalInvestingActivities: 0,
       totalFinancingActivities: 0,
-      netCashFlow: 0
+      netCashFlow: 0,
     },
     generalLedger: {
       accounts: [],
       totalDebits: 0,
-      totalCredits: 0
+      totalCredits: 0,
     },
     trialBalance: {
       accounts: [],
       totalDebits: 0,
       totalCredits: 0,
-      isBalanced: true
-    }
+      isBalanced: true,
+    },
   })
   const [loading, setLoading] = useState(true)
   const [pdfGenerating, setPdfGenerating] = useState(false)
@@ -91,7 +113,7 @@ export default function ReportsPage() {
         supabase,
         companyId: currentCompany.id,
         fromDate: dateFrom,
-        toDate: dateTo
+        toDate: dateTo,
       })
 
       // Set the report data
@@ -107,8 +129,9 @@ export default function ReportsPage() {
     if (currentCompany) {
       fetchReportData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCompany?.id]) // Only depend on company ID, not fetchReportData
-  
+
   useEffect(() => {
     updateDatesForYear(selectedYear)
   }, [selectedYear]) // Include selectedYear in dependencies
@@ -144,31 +167,39 @@ export default function ReportsPage() {
     // Parse dates consistently using UTC to avoid timezone issues
     const fromDate = new Date(dateFrom + 'T00:00:00.000Z')
     const toDate = new Date(dateTo + 'T00:00:00.000Z')
-    
+
     // Check if it's a full year (January 1st to December 31st of same year)
-    return fromDate.getUTCFullYear() === toDate.getUTCFullYear() &&
-           fromDate.getUTCMonth() === 0 && fromDate.getUTCDate() === 1 &&
-           toDate.getUTCMonth() === 11 && toDate.getUTCDate() === 31
+    return (
+      fromDate.getUTCFullYear() === toDate.getUTCFullYear() &&
+      fromDate.getUTCMonth() === 0 &&
+      fromDate.getUTCDate() === 1 &&
+      toDate.getUTCMonth() === 11 &&
+      toDate.getUTCDate() === 31
+    )
   }
 
   const isFullMonth = () => {
     // Parse dates consistently using UTC to avoid timezone issues
     const fromDate = new Date(dateFrom + 'T00:00:00.000Z')
     const toDate = new Date(dateTo + 'T00:00:00.000Z')
-    
+
     // Check if it's a full month (1st to last day of same month)
-    if (fromDate.getUTCFullYear() !== toDate.getUTCFullYear() || 
-        fromDate.getUTCMonth() !== toDate.getUTCMonth()) {
+    if (
+      fromDate.getUTCFullYear() !== toDate.getUTCFullYear() ||
+      fromDate.getUTCMonth() !== toDate.getUTCMonth()
+    ) {
       return false
     }
-    
+
     // Check if fromDate is the 1st of the month
     if (fromDate.getUTCDate() !== 1) {
       return false
     }
-    
+
     // Check if toDate is the last day of the month
-    const lastDayOfMonth = new Date(Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth() + 1, 0))
+    const lastDayOfMonth = new Date(
+      Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth() + 1, 0)
+    )
     return toDate.getUTCDate() === lastDayOfMonth.getUTCDate()
   }
 
@@ -291,25 +322,32 @@ export default function ReportsPage() {
     <div className="container mx-auto p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Financial Reports</h1>
-        <p className="text-gray-600">Generate and view your financial reports</p>
+        <p className="text-gray-600">
+          Generate and view your financial reports
+        </p>
       </div>
 
       {/* Report Dates Section */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Report Dates</CardTitle>
-          <CardDescription>Select the date range for your reports</CardDescription>
+          <CardDescription>
+            Select the date range for your reports
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="year">Year</Label>
-              <Select value={selectedYear.toString()} onValueChange={(value) => handleYearChange(parseInt(value))}>
+              <Select
+                value={selectedYear.toString()}
+                onValueChange={value => handleYearChange(parseInt(value))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {getYearOptions().map((year) => (
+                  {getYearOptions().map(year => (
                     <SelectItem key={year} value={year.toString()}>
                       {year}
                     </SelectItem>
@@ -326,7 +364,10 @@ export default function ReportsPage() {
             </div>
             <div>
               <Label htmlFor="month">Month</Label>
-              <Select value={selectedMonth.toString()} onValueChange={(value) => handleMonthChange(parseInt(value))}>
+              <Select
+                value={selectedMonth.toString()}
+                onValueChange={value => handleMonthChange(parseInt(value))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -359,8 +400,12 @@ export default function ReportsPage() {
                 id="fromDate"
                 type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className={isFullYear() || isFullMonth() ? 'font-bold border-gray-300' : 'border-gray-300'}
+                onChange={e => setDateFrom(e.target.value)}
+                className={
+                  isFullYear() || isFullMonth()
+                    ? 'font-bold border-gray-300'
+                    : 'border-gray-300'
+                }
               />
             </div>
             <div>
@@ -369,8 +414,12 @@ export default function ReportsPage() {
                 id="toDate"
                 type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className={isFullYear() || isFullMonth() ? 'font-bold border-gray-300' : 'border-gray-300'}
+                onChange={e => setDateTo(e.target.value)}
+                className={
+                  isFullYear() || isFullMonth()
+                    ? 'font-bold border-gray-300'
+                    : 'border-gray-300'
+                }
               />
             </div>
           </div>
@@ -403,7 +452,7 @@ export default function ReportsPage() {
                     {formatDate(dateFrom)} - {formatDate(dateTo)}
                   </CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={handleExportProfitLossPDF}
                   variant="outline"
                   size="sm"
@@ -420,19 +469,28 @@ export default function ReportsPage() {
                 {/* Revenue */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Revenue</h3>
-                  {reportData.profitLoss.revenue.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.profitLoss.revenue.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Revenue</span>
-                      <span>{formatCurrency(reportData.profitLoss.totalRevenue)}</span>
+                      <span>
+                        {formatCurrency(reportData.profitLoss.totalRevenue)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -440,20 +498,33 @@ export default function ReportsPage() {
                 {/* Cost of Goods Sold */}
                 {reportData.profitLoss.costOfGoodsSold.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">Cost of Goods Sold</h3>
-                    {reportData.profitLoss.costOfGoodsSold.map((item) => (
-                      <div key={item.accountName} className="flex justify-between py-1">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Cost of Goods Sold
+                    </h3>
+                    {reportData.profitLoss.costOfGoodsSold.map(item => (
+                      <div
+                        key={item.accountName}
+                        className="flex justify-between py-1"
+                      >
                         <span className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span className="text-sm text-gray-500 font-mono">
+                            {item.accountNumber}
+                          </span>
                           <span>{item.accountName}</span>
                         </span>
-                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                        <span className="font-medium">
+                          {formatCurrency(item.amount)}
+                        </span>
                       </div>
                     ))}
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span>Total Cost of Goods Sold</span>
-                        <span>{formatCurrency(reportData.profitLoss.totalCostOfGoodsSold)}</span>
+                        <span>
+                          {formatCurrency(
+                            reportData.profitLoss.totalCostOfGoodsSold
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -463,26 +534,41 @@ export default function ReportsPage() {
                 <div className="border-t pt-4">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Gross Profit</span>
-                    <span>{formatCurrency(reportData.profitLoss.grossProfit)}</span>
+                    <span>
+                      {formatCurrency(reportData.profitLoss.grossProfit)}
+                    </span>
                   </div>
                 </div>
 
                 {/* Operating Expenses */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Operating Expenses</h3>
-                  {reportData.profitLoss.operatingExpenses.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Operating Expenses
+                  </h3>
+                  {reportData.profitLoss.operatingExpenses.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Operating Expenses</span>
-                      <span>{formatCurrency(reportData.profitLoss.totalOperatingExpenses)}</span>
+                      <span>
+                        {formatCurrency(
+                          reportData.profitLoss.totalOperatingExpenses
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -491,7 +577,9 @@ export default function ReportsPage() {
                 <div className="border-t pt-4">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Operating Income</span>
-                    <span>{formatCurrency(reportData.profitLoss.operatingIncome)}</span>
+                    <span>
+                      {formatCurrency(reportData.profitLoss.operatingIncome)}
+                    </span>
                   </div>
                 </div>
 
@@ -499,19 +587,30 @@ export default function ReportsPage() {
                 {reportData.profitLoss.otherIncome.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Other Income</h3>
-                    {reportData.profitLoss.otherIncome.map((item) => (
-                      <div key={item.accountName} className="flex justify-between py-1">
+                    {reportData.profitLoss.otherIncome.map(item => (
+                      <div
+                        key={item.accountName}
+                        className="flex justify-between py-1"
+                      >
                         <span className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span className="text-sm text-gray-500 font-mono">
+                            {item.accountNumber}
+                          </span>
                           <span>{item.accountName}</span>
                         </span>
-                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                        <span className="font-medium">
+                          {formatCurrency(item.amount)}
+                        </span>
                       </div>
                     ))}
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span>Total Other Income</span>
-                        <span>{formatCurrency(reportData.profitLoss.totalOtherIncome)}</span>
+                        <span>
+                          {formatCurrency(
+                            reportData.profitLoss.totalOtherIncome
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -520,20 +619,33 @@ export default function ReportsPage() {
                 {/* Other Expenses */}
                 {reportData.profitLoss.otherExpenses.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">Other Expenses</h3>
-                    {reportData.profitLoss.otherExpenses.map((item) => (
-                      <div key={item.accountName} className="flex justify-between py-1">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Other Expenses
+                    </h3>
+                    {reportData.profitLoss.otherExpenses.map(item => (
+                      <div
+                        key={item.accountName}
+                        className="flex justify-between py-1"
+                      >
                         <span className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span className="text-sm text-gray-500 font-mono">
+                            {item.accountNumber}
+                          </span>
                           <span>{item.accountName}</span>
                         </span>
-                        <span className="font-medium">{formatCurrency(item.amount)}</span>
+                        <span className="font-medium">
+                          {formatCurrency(item.amount)}
+                        </span>
                       </div>
                     ))}
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span>Total Other Expenses</span>
-                        <span>{formatCurrency(reportData.profitLoss.totalOtherExpenses)}</span>
+                        <span>
+                          {formatCurrency(
+                            reportData.profitLoss.totalOtherExpenses
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -543,7 +655,13 @@ export default function ReportsPage() {
                 <div className="border-t-2 pt-4">
                   <div className="flex justify-between font-bold text-xl">
                     <span>Net Income</span>
-                    <span className={reportData.profitLoss.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <span
+                      className={
+                        reportData.profitLoss.netIncome >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }
+                    >
                       {formatCurrency(reportData.profitLoss.netIncome)}
                     </span>
                   </div>
@@ -560,11 +678,9 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Balance Sheet</CardTitle>
-                  <CardDescription>
-                    As of {formatDate(dateTo)}
-                  </CardDescription>
+                  <CardDescription>As of {formatDate(dateTo)}</CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={handleExportBalanceSheetPDF}
                   variant="outline"
                   size="sm"
@@ -581,19 +697,28 @@ export default function ReportsPage() {
                 {/* Assets */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Assets</h3>
-                  {reportData.balanceSheet.assets.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.balanceSheet.assets.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold text-lg">
                       <span>Total Assets</span>
-                      <span>{formatCurrency(reportData.balanceSheet.totalAssets)}</span>
+                      <span>
+                        {formatCurrency(reportData.balanceSheet.totalAssets)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -601,43 +726,68 @@ export default function ReportsPage() {
                 {/* Liabilities & Equity */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Liabilities</h3>
-                  {reportData.balanceSheet.liabilities.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.balanceSheet.liabilities.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Liabilities</span>
-                      <span>{formatCurrency(reportData.balanceSheet.totalLiabilities)}</span>
+                      <span>
+                        {formatCurrency(
+                          reportData.balanceSheet.totalLiabilities
+                        )}
+                      </span>
                     </div>
                   </div>
 
                   <h3 className="text-lg font-semibold mb-4 mt-6">Equity</h3>
-                  {reportData.balanceSheet.equity.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  {reportData.balanceSheet.equity.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Total Equity</span>
-                      <span>{formatCurrency(reportData.balanceSheet.totalEquity)}</span>
+                      <span>
+                        {formatCurrency(reportData.balanceSheet.totalEquity)}
+                      </span>
                     </div>
                   </div>
 
                   <div className="border-t-2 pt-4 mt-4">
                     <div className="flex justify-between font-semibold text-lg">
                       <span>Liabilities + Equity</span>
-                      <span>{formatCurrency(reportData.balanceSheet.totalLiabilities + reportData.balanceSheet.totalEquity)}</span>
+                      <span>
+                        {formatCurrency(
+                          reportData.balanceSheet.totalLiabilities +
+                            reportData.balanceSheet.totalEquity
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -657,7 +807,7 @@ export default function ReportsPage() {
                     {formatDate(dateFrom)} - {formatDate(dateTo)}
                   </CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={handleExportCashFlowPDF}
                   variant="outline"
                   size="sm"
@@ -673,14 +823,25 @@ export default function ReportsPage() {
               <div className="space-y-6">
                 {/* Operating Activities */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Operating Activities</h3>
-                  {reportData.cashFlow.operatingActivities.map((item) => (
-                    <div key={item.accountName} className="flex justify-between py-1">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Operating Activities
+                  </h3>
+                  {reportData.cashFlow.operatingActivities.map(item => (
+                    <div
+                      key={item.accountName}
+                      className="flex justify-between py-1"
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                        <span className="text-sm text-gray-500 font-mono">
+                          {item.accountNumber}
+                        </span>
                         <span>{item.accountName}</span>
                       </span>
-                      <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <span
+                        className={`font-medium ${
+                          item.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
                         {formatCurrency(item.amount)}
                       </span>
                     </div>
@@ -688,8 +849,16 @@ export default function ReportsPage() {
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between font-semibold">
                       <span>Net Cash from Operating Activities</span>
-                      <span className={reportData.cashFlow.totalOperatingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(reportData.cashFlow.totalOperatingActivities)}
+                      <span
+                        className={
+                          reportData.cashFlow.totalOperatingActivities >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
+                        }
+                      >
+                        {formatCurrency(
+                          reportData.cashFlow.totalOperatingActivities
+                        )}
                       </span>
                     </div>
                   </div>
@@ -698,14 +867,25 @@ export default function ReportsPage() {
                 {/* Investing Activities */}
                 {reportData.cashFlow.investingActivities.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">Investing Activities</h3>
-                    {reportData.cashFlow.investingActivities.map((item) => (
-                      <div key={item.accountName} className="flex justify-between py-1">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Investing Activities
+                    </h3>
+                    {reportData.cashFlow.investingActivities.map(item => (
+                      <div
+                        key={item.accountName}
+                        className="flex justify-between py-1"
+                      >
                         <span className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span className="text-sm text-gray-500 font-mono">
+                            {item.accountNumber}
+                          </span>
                           <span>{item.accountName}</span>
                         </span>
-                        <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span
+                          className={`font-medium ${
+                            item.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
                           {formatCurrency(item.amount)}
                         </span>
                       </div>
@@ -713,8 +893,16 @@ export default function ReportsPage() {
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span>Net Cash from Investing Activities</span>
-                        <span className={reportData.cashFlow.totalInvestingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {formatCurrency(reportData.cashFlow.totalInvestingActivities)}
+                        <span
+                          className={
+                            reportData.cashFlow.totalInvestingActivities >= 0
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }
+                        >
+                          {formatCurrency(
+                            reportData.cashFlow.totalInvestingActivities
+                          )}
                         </span>
                       </div>
                     </div>
@@ -724,14 +912,25 @@ export default function ReportsPage() {
                 {/* Financing Activities */}
                 {reportData.cashFlow.financingActivities.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">Financing Activities</h3>
-                    {reportData.cashFlow.financingActivities.map((item) => (
-                      <div key={item.accountName} className="flex justify-between py-1">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Financing Activities
+                    </h3>
+                    {reportData.cashFlow.financingActivities.map(item => (
+                      <div
+                        key={item.accountName}
+                        className="flex justify-between py-1"
+                      >
                         <span className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500 font-mono">{item.accountNumber}</span>
+                          <span className="text-sm text-gray-500 font-mono">
+                            {item.accountNumber}
+                          </span>
                           <span>{item.accountName}</span>
                         </span>
-                        <span className={`font-medium ${item.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span
+                          className={`font-medium ${
+                            item.amount >= 0 ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
                           {formatCurrency(item.amount)}
                         </span>
                       </div>
@@ -739,8 +938,16 @@ export default function ReportsPage() {
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between font-semibold">
                         <span>Net Cash from Financing Activities</span>
-                        <span className={reportData.cashFlow.totalFinancingActivities >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {formatCurrency(reportData.cashFlow.totalFinancingActivities)}
+                        <span
+                          className={
+                            reportData.cashFlow.totalFinancingActivities >= 0
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }
+                        >
+                          {formatCurrency(
+                            reportData.cashFlow.totalFinancingActivities
+                          )}
                         </span>
                       </div>
                     </div>
@@ -751,7 +958,13 @@ export default function ReportsPage() {
                 <div className="border-t-2 pt-4">
                   <div className="flex justify-between font-bold text-xl">
                     <span>Net Cash Flow</span>
-                    <span className={reportData.cashFlow.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <span
+                      className={
+                        reportData.cashFlow.netCashFlow >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }
+                    >
                       {formatCurrency(reportData.cashFlow.netCashFlow)}
                     </span>
                   </div>
@@ -785,7 +998,7 @@ export default function ReportsPage() {
                     {formatDate(dateFrom)} - {formatDate(dateTo)}
                   </CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={handleExportGeneralLedgerPDF}
                   variant="outline"
                   size="sm"
@@ -808,24 +1021,36 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(reportData.generalLedger.accounts).map(([account, data]) => (
-                    <TableRow key={account}>
-                      <TableCell className="font-medium">{account}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(data.debits)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(data.credits)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(data.balance)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {Object.entries(reportData.generalLedger.accounts).map(
+                    ([account, data]) => (
+                      <TableRow key={account}>
+                        <TableCell className="font-medium">{account}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.debits)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.credits)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.balance)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  )}
                 </TableBody>
               </Table>
               <div className="mt-4 pt-4 border-t">
                 <div className="flex justify-between font-semibold">
                   <span>Total Debits</span>
-                  <span>{formatCurrency(reportData.generalLedger.totalDebits)}</span>
+                  <span>
+                    {formatCurrency(reportData.generalLedger.totalDebits)}
+                  </span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Total Credits</span>
-                  <span>{formatCurrency(reportData.generalLedger.totalCredits)}</span>
+                  <span>
+                    {formatCurrency(reportData.generalLedger.totalCredits)}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -837,11 +1062,9 @@ export default function ReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Trial Balance</CardTitle>
-                  <CardDescription>
-                    As of {formatDate(dateTo)}
-                  </CardDescription>
+                  <CardDescription>As of {formatDate(dateTo)}</CardDescription>
                 </div>
-                <Button 
+                <Button
                   onClick={handleExportTrialBalancePDF}
                   variant="outline"
                   size="sm"
@@ -864,28 +1087,46 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(reportData.trialBalance.accounts).map(([account, data]) => (
-                    <TableRow key={account}>
-                      <TableCell className="font-medium">{account}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(data.debits)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(data.credits)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(data.balance)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {Object.entries(reportData.trialBalance.accounts).map(
+                    ([account, data]) => (
+                      <TableRow key={account}>
+                        <TableCell className="font-medium">{account}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.debits)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.credits)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(data.balance)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  )}
                 </TableBody>
               </Table>
               <div className="mt-4 pt-4 border-t">
                 <div className="flex justify-between font-semibold">
                   <span>Total Debits</span>
-                  <span>{formatCurrency(reportData.trialBalance.totalDebits)}</span>
+                  <span>
+                    {formatCurrency(reportData.trialBalance.totalDebits)}
+                  </span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Total Credits</span>
-                  <span>{formatCurrency(reportData.trialBalance.totalCredits)}</span>
+                  <span>
+                    {formatCurrency(reportData.trialBalance.totalCredits)}
+                  </span>
                 </div>
                 <div className="flex justify-between font-semibold mt-2">
                   <span>Balanced</span>
-                  <span className={reportData.trialBalance.isBalanced ? 'text-green-600' : 'text-red-600'}>
+                  <span
+                    className={
+                      reportData.trialBalance.isBalanced
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }
+                  >
                     {reportData.trialBalance.isBalanced ? 'Yes' : 'No'}
                   </span>
                 </div>

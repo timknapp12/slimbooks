@@ -4,8 +4,20 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { CreditCard, Building2 } from 'lucide-react'
 
@@ -31,7 +43,7 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
     'US Bank',
     'PNC Bank',
     'TD Bank',
-    'Other'
+    'Other',
   ]
 
   const accountTypes = [
@@ -39,7 +51,7 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
     'Savings',
     'Business Checking',
     'Business Savings',
-    'Credit Card'
+    'Credit Card',
   ]
 
   const handleBankSelect = (bank: string) => {
@@ -86,9 +98,11 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
       setStep('select')
       setSelectedBank('')
       setAccountType('')
-
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to connect bank account'
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to connect bank account'
       toast({
         title: 'Error',
         description: errorMessage,
@@ -113,19 +127,20 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
             Connect Bank Account
           </DialogTitle>
           <DialogDescription>
-            {step === 'select' 
+            {step === 'select'
               ? 'Select your bank to automatically import transactions'
-              : 'This is a demo - real implementation would use secure OAuth'
-            }
+              : 'This is a demo - real implementation would use secure OAuth'}
           </DialogDescription>
         </DialogHeader>
 
         {step === 'select' && (
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium mb-3 block">Popular Banks</Label>
+              <Label className="text-sm font-medium mb-3 block">
+                Popular Banks
+              </Label>
               <div className="grid grid-cols-1 gap-2">
-                {popularBanks.map((bank) => (
+                {popularBanks.map(bank => (
                   <Button
                     key={bank}
                     variant="outline"
@@ -145,8 +160,9 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Demo Mode:</strong> This is a demonstration. In a real implementation, 
-                you would be redirected to {selectedBank}&apos;s secure login page.
+                <strong>Demo Mode:</strong> This is a demonstration. In a real
+                implementation, you would be redirected to {selectedBank}&apos;s
+                secure login page.
               </p>
             </div>
 
@@ -162,7 +178,7 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
                   <SelectValue placeholder="Select account type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {accountTypes.map((type) => (
+                  {accountTypes.map(type => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -175,8 +191,8 @@ export function BankConnect({ isOpen, onClose, onSuccess }: BankConnectProps) {
               <Button variant="outline" onClick={handleBack} className="flex-1">
                 Back
               </Button>
-              <Button 
-                onClick={handleConnect} 
+              <Button
+                onClick={handleConnect}
                 disabled={!accountType || loading}
                 className="flex-1"
               >

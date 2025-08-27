@@ -8,17 +8,36 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Building2, Users, CreditCard, Plus, Edit2, Check, X, Eye } from 'lucide-react'
+import {
+  Building2,
+  Users,
+  CreditCard,
+  Plus,
+  Edit2,
+  Check,
+  X,
+  Eye,
+} from 'lucide-react'
 import { useCompany } from '@/contexts/CompanyContext'
 import ChartOfAccounts from '@/components/chart-of-accounts'
 import { SimpleEIN } from '@/components/ein-input'
 import { US_STATES } from '@/lib/us-states'
-
-
 
 interface User {
   id: string
@@ -42,7 +61,7 @@ function SettingsPageContent() {
     state: '',
     zip_code: '',
     ein: '',
-    accounting_method: 'cash' as 'cash' | 'accrual'
+    accounting_method: 'cash' as 'cash' | 'accrual',
   })
   const { toast } = useToast()
   const supabase = createClient()
@@ -57,7 +76,7 @@ function SettingsPageContent() {
     state: '',
     zip_code: '',
     ein: '',
-    accounting_method: 'cash' as 'cash' | 'accrual'
+    accounting_method: 'cash' as 'cash' | 'accrual',
   })
 
   // Validation state
@@ -73,7 +92,8 @@ function SettingsPageContent() {
       // Fetch users for the current company
       const { data: usersData, error: usersError } = await supabase
         .from('user_companies')
-        .select(`
+        .select(
+          `
           id,
           user_id,
           role,
@@ -81,7 +101,8 @@ function SettingsPageContent() {
             id,
             email
           )
-        `)
+        `
+        )
         .eq('company_id', currentCompany.id)
 
       if (usersError) {
@@ -95,11 +116,14 @@ function SettingsPageContent() {
       }
 
       // Transform the data to match the User interface
-      const users: User[] = usersData?.map((uc: { user_id: string; user: { email: string }; role: string }) => ({
-        id: uc.user_id,
-        email: uc.user.email,
-        role: uc.role
-      })) || []
+      const users: User[] =
+        usersData?.map(
+          (uc: { user_id: string; user: { email: string }; role: string }) => ({
+            id: uc.user_id,
+            email: uc.user.email,
+            role: uc.role,
+          })
+        ) || []
 
       setUsers(users)
 
@@ -145,7 +169,7 @@ function SettingsPageContent() {
         setPriceId(null)
       }
       */
-      
+
       // Set default values for now
       setHasSubscription(false)
       setPriceId('price_test_basic_plan')
@@ -171,24 +195,25 @@ function SettingsPageContent() {
   useEffect(() => {
     const tab = searchParams.get('tab')
     const addCompany = searchParams.get('addCompany')
-    
+
     if (tab === 'companies') {
       // Set the companies tab as active (this will be handled by the Tabs component)
       // The tab will be set via the defaultValue prop
     }
-    
+
     if (addCompany === 'true') {
       setShowAddCompany(true)
     }
   }, [searchParams])
 
-
-
   const handleManageSubscription = async () => {
     setManagingSubscription(true)
-    
+
     try {
-      console.log('Making portal session request to:', window.location.origin + '/api/create-portal-session')
+      console.log(
+        'Making portal session request to:',
+        window.location.origin + '/api/create-portal-session'
+      )
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: {
@@ -212,7 +237,8 @@ function SettingsPageContent() {
           setHasSubscription(false)
           toast({
             title: 'No Subscription',
-            description: 'You need to subscribe first to manage your subscription.',
+            description:
+              'You need to subscribe first to manage your subscription.',
             variant: 'destructive',
           })
           return
@@ -226,7 +252,8 @@ function SettingsPageContent() {
       console.error('Error creating portal session:', error)
       toast({
         title: 'Error',
-        description: 'Failed to open subscription management. Please try again.',
+        description:
+          'Failed to open subscription management. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -245,7 +272,7 @@ function SettingsPageContent() {
     }
 
     setManagingSubscription(true)
-    
+
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -253,7 +280,7 @@ function SettingsPageContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceId: priceId
+          priceId: priceId,
         }),
         credentials: 'include',
       })
@@ -264,7 +291,9 @@ function SettingsPageContent() {
 
       const { sessionId } = await response.json()
       // Redirect to Stripe Checkout
-      const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!))
+      const stripe = await import('@stripe/stripe-js').then(m =>
+        m.loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+      )
       if (stripe) {
         await stripe.redirectToCheckout({ sessionId })
       }
@@ -280,9 +309,20 @@ function SettingsPageContent() {
     }
   }
 
-  const handleStartEditCompany = (userCompany: { company_id: string; company: { name: string; street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null; ein: string; accounting_method: 'cash' | 'accrual' } }) => {
+  const handleStartEditCompany = (userCompany: {
+    company_id: string
+    company: {
+      name: string
+      street_address?: string | null
+      city?: string | null
+      state?: string | null
+      zip_code?: string | null
+      ein: string
+      accounting_method: 'cash' | 'accrual'
+    }
+  }) => {
     setEditingCompanyId(userCompany.company_id)
-    
+
     setEditingCompanyForm({
       name: userCompany.company.name || '',
       street_address: userCompany.company.street_address || '',
@@ -290,7 +330,7 @@ function SettingsPageContent() {
       state: userCompany.company.state || '',
       zip_code: userCompany.company.zip_code || '',
       ein: userCompany.company.ein || '',
-      accounting_method: userCompany.company.accounting_method || 'cash'
+      accounting_method: userCompany.company.accounting_method || 'cash',
     })
   }
 
@@ -303,7 +343,7 @@ function SettingsPageContent() {
       state: '',
       zip_code: '',
       ein: '',
-      accounting_method: 'cash'
+      accounting_method: 'cash',
     })
   }
 
@@ -315,13 +355,20 @@ function SettingsPageContent() {
     setViewingCompanyId(null)
   }
 
-  const formatAddress = (company: { street_address?: string | null; city?: string | null; state?: string | null; zip_code?: string | null }) => {
+  const formatAddress = (company: {
+    street_address?: string | null
+    city?: string | null
+    state?: string | null
+    zip_code?: string | null
+  }) => {
     const parts = [
       company.street_address,
       company.city,
-      company.state && company.zip_code ? `${company.state} ${company.zip_code}` : company.state || company.zip_code
+      company.state && company.zip_code
+        ? `${company.state} ${company.zip_code}`
+        : company.state || company.zip_code,
     ].filter(Boolean)
-    
+
     return parts.length > 0 ? parts.join(', ') : 'No address provided'
   }
 
@@ -338,7 +385,7 @@ function SettingsPageContent() {
           state: editingCompanyForm.state || null,
           zip_code: editingCompanyForm.zip_code || null,
           ein: editingCompanyForm.ein,
-          accounting_method: editingCompanyForm.accounting_method
+          accounting_method: editingCompanyForm.accounting_method,
         })
         .eq('id', editingCompanyId)
 
@@ -357,7 +404,7 @@ function SettingsPageContent() {
         state: '',
         zip_code: '',
         ein: '',
-        accounting_method: 'cash'
+        accounting_method: 'cash',
       })
       await refreshCompanies()
     } catch {
@@ -382,15 +429,16 @@ function SettingsPageContent() {
         </p>
       </div>
 
-      <Tabs defaultValue={searchParams.get('tab') || "companies"} className="space-y-4">
+      <Tabs
+        defaultValue={searchParams.get('tab') || 'companies'}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="companies">Companies</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="chart-of-accounts">Chart of Accounts</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
         </TabsList>
-
-
 
         <TabsContent value="companies">
           <Card>
@@ -405,17 +453,29 @@ function SettingsPageContent() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {userCompanies.map((userCompany) => (
-                  <div key={userCompany.company_id} className="p-4 border rounded-lg">
+                {userCompanies.map(userCompany => (
+                  <div
+                    key={userCompany.company_id}
+                    className="p-4 border rounded-lg"
+                  >
                     {editingCompanyId === userCompany.company_id ? (
                       // Edit mode
                       <div className="flex-1 space-y-4">
                         <div>
-                          <Label htmlFor={`edit-company-name-${userCompany.company_id}`}>Company Name *</Label>
+                          <Label
+                            htmlFor={`edit-company-name-${userCompany.company_id}`}
+                          >
+                            Company Name *
+                          </Label>
                           <Input
                             id={`edit-company-name-${userCompany.company_id}`}
                             value={editingCompanyForm.name}
-                            onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, name: e.target.value })}
+                            onChange={e =>
+                              setEditingCompanyForm({
+                                ...editingCompanyForm,
+                                name: e.target.value,
+                              })
+                            }
                             required
                           />
                         </div>
@@ -423,65 +483,117 @@ function SettingsPageContent() {
                           <SimpleEIN
                             id={`edit-company-ein-${userCompany.company_id}`}
                             value={editingCompanyForm.ein}
-                            onValueChangeAction={(value) => setEditingCompanyForm({ ...editingCompanyForm, ein: value })}
+                            onValueChangeAction={value =>
+                              setEditingCompanyForm({
+                                ...editingCompanyForm,
+                                ein: value,
+                              })
+                            }
                             onValidationChange={setEditingEinValid}
                             nextInputId={`edit-company-street-${userCompany.company_id}`}
                           />
                         </div>
                         <div className="space-y-4">
                           <div>
-                            <Label htmlFor={`edit-company-street-${userCompany.company_id}`}>Street Address</Label>
+                            <Label
+                              htmlFor={`edit-company-street-${userCompany.company_id}`}
+                            >
+                              Street Address
+                            </Label>
                             <Input
                               id={`edit-company-street-${userCompany.company_id}`}
                               value={editingCompanyForm.street_address}
-                              onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, street_address: e.target.value })}
+                              onChange={e =>
+                                setEditingCompanyForm({
+                                  ...editingCompanyForm,
+                                  street_address: e.target.value,
+                                })
+                              }
                               placeholder="123 Main St"
                             />
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                              <Label htmlFor={`edit-company-city-${userCompany.company_id}`}>City</Label>
+                              <Label
+                                htmlFor={`edit-company-city-${userCompany.company_id}`}
+                              >
+                                City
+                              </Label>
                               <Input
                                 id={`edit-company-city-${userCompany.company_id}`}
                                 value={editingCompanyForm.city}
-                                onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, city: e.target.value })}
+                                onChange={e =>
+                                  setEditingCompanyForm({
+                                    ...editingCompanyForm,
+                                    city: e.target.value,
+                                  })
+                                }
                                 placeholder="San Francisco"
                               />
                             </div>
                             <div>
-                              <Label htmlFor={`edit-company-state-${userCompany.company_id}`}>State</Label>
+                              <Label
+                                htmlFor={`edit-company-state-${userCompany.company_id}`}
+                              >
+                                State
+                              </Label>
                               <Select
                                 value={editingCompanyForm.state}
-                                onValueChange={(value) => setEditingCompanyForm({ ...editingCompanyForm, state: value })}
+                                onValueChange={value =>
+                                  setEditingCompanyForm({
+                                    ...editingCompanyForm,
+                                    state: value,
+                                  })
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select state" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {US_STATES.map((state) => (
-                                    <SelectItem key={state.code} value={state.code}>
+                                  {US_STATES.map(state => (
+                                    <SelectItem
+                                      key={state.code}
+                                      value={state.code}
+                                    >
                                       {state.name} ({state.code})
                                     </SelectItem>
-                                  ))}                                </SelectContent>
+                                  ))}{' '}
+                                </SelectContent>
                               </Select>
                             </div>
                             <div>
-                              <Label htmlFor={`edit-company-zip-${userCompany.company_id}`}>ZIP Code</Label>
+                              <Label
+                                htmlFor={`edit-company-zip-${userCompany.company_id}`}
+                              >
+                                ZIP Code
+                              </Label>
                               <Input
                                 id={`edit-company-zip-${userCompany.company_id}`}
                                 value={editingCompanyForm.zip_code}
-                                onChange={(e) => setEditingCompanyForm({ ...editingCompanyForm, zip_code: e.target.value })}
+                                onChange={e =>
+                                  setEditingCompanyForm({
+                                    ...editingCompanyForm,
+                                    zip_code: e.target.value,
+                                  })
+                                }
                                 placeholder="12345"
                               />
                             </div>
                           </div>
                         </div>
                         <div>
-                          <Label htmlFor={`edit-company-accounting-${userCompany.company_id}`}>Accounting Method</Label>
+                          <Label
+                            htmlFor={`edit-company-accounting-${userCompany.company_id}`}
+                          >
+                            Accounting Method
+                          </Label>
                           <Select
                             value={editingCompanyForm.accounting_method}
-                            onValueChange={(value: 'cash' | 'accrual') => 
-                              setEditingCompanyForm({ ...editingCompanyForm, accounting_method: value })
+                            onValueChange={(value: 'cash' | 'accrual') =>
+                              setEditingCompanyForm({
+                                ...editingCompanyForm,
+                                accounting_method: value,
+                              })
                             }
                           >
                             <SelectTrigger>
@@ -490,18 +602,23 @@ function SettingsPageContent() {
                             <SelectContent>
                               <SelectItem value="cash">Cash</SelectItem>
                               <SelectItem value="accrual">Accrual</SelectItem>
-                            </SelectContent>                          </Select>
+                            </SelectContent>{' '}
+                          </Select>
                         </div>
                         <div className="flex gap-2">
-                          <Button 
-                            onClick={handleSaveEditCompany} 
+                          <Button
+                            onClick={handleSaveEditCompany}
                             size="sm"
                             disabled={!editingEinValid}
                           >
                             <Check className="mr-2 h-4 w-4" />
                             Save
                           </Button>
-                          <Button onClick={handleCancelEditCompany} variant="outline" size="sm">
+                          <Button
+                            onClick={handleCancelEditCompany}
+                            variant="outline"
+                            size="sm"
+                          >
                             <X className="mr-2 h-4 w-4" />
                             Cancel
                           </Button>
@@ -511,32 +628,52 @@ function SettingsPageContent() {
                       // View mode - detailed view
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h4 className="font-semibold text-lg">{userCompany.company.name}</h4>
-                          <Button onClick={handleCloseViewCompany} variant="ghost" size="sm">
+                          <h4 className="font-semibold text-lg">
+                            {userCompany.company.name}
+                          </h4>
+                          <Button
+                            onClick={handleCloseViewCompany}
+                            variant="ghost"
+                            size="sm"
+                          >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <Label className="text-sm font-medium text-muted-foreground">EIN</Label>
-                            <p className="text-sm">{userCompany.company.ein || 'Not provided'}</p>
+                            <Label className="text-sm font-medium text-muted-foreground">
+                              EIN
+                            </Label>
+                            <p className="text-sm">
+                              {userCompany.company.ein || 'Not provided'}
+                            </p>
                           </div>
                           <div>
-                            <Label className="text-sm font-medium text-muted-foreground">Accounting Method</Label>
-                            <p className="text-sm capitalize">{userCompany.company.accounting_method}</p>
+                            <Label className="text-sm font-medium text-muted-foreground">
+                              Accounting Method
+                            </Label>
+                            <p className="text-sm capitalize">
+                              {userCompany.company.accounting_method}
+                            </p>
                           </div>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium text-muted-foreground">Address</Label>
-                          <p className="text-sm">{formatAddress(userCompany.company)}</p>
+                          <Label className="text-sm font-medium text-muted-foreground">
+                            Address
+                          </Label>
+                          <p className="text-sm">
+                            {formatAddress(userCompany.company)}
+                          </p>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t">
                           <div className="flex gap-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              userCompany.role === 'admin' 
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-secondary text-secondary-foreground'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                userCompany.role === 'admin'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-secondary text-secondary-foreground'
+                              }`}
+                            >
                               {userCompany.role === 'admin' ? 'Admin' : 'Staff'}
                             </span>
                             {userCompany.is_default && (
@@ -559,15 +696,22 @@ function SettingsPageContent() {
                       // Summary mode
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium">{userCompany.company.name}</p>
+                          <p className="font-medium">
+                            {userCompany.company.name}
+                          </p>
                           <p className="text-sm text-muted-foreground">
-                            Role: {userCompany.role === 'admin' ? 'Administrator' : 'Staff'}
+                            Role:{' '}
+                            {userCompany.role === 'admin'
+                              ? 'Administrator'
+                              : 'Staff'}
                             {userCompany.is_default && ' • Default'}
                           </p>
                         </div>
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => handleViewCompany(userCompany.company_id)}
+                            onClick={() =>
+                              handleViewCompany(userCompany.company_id)
+                            }
                             variant="ghost"
                             size="sm"
                           >
@@ -580,11 +724,13 @@ function SettingsPageContent() {
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            userCompany.role === 'admin' 
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-secondary text-secondary-foreground'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              userCompany.role === 'admin'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-secondary text-secondary-foreground'
+                            }`}
+                          >
                             {userCompany.role === 'admin' ? 'Admin' : 'Staff'}
                           </span>
                           {userCompany.is_default && (
@@ -597,10 +743,10 @@ function SettingsPageContent() {
                     )}
                   </div>
                 ))}
-                
+
                 {!showAddCompany && (
                   <div className="pt-4 border-t">
-                    <Button 
+                    <Button
                       onClick={() => setShowAddCompany(true)}
                       className="w-full"
                       variant="outline"
@@ -614,68 +760,90 @@ function SettingsPageContent() {
                 {showAddCompany && (
                   <div className="mt-4 p-4 border rounded-lg bg-muted/50">
                     <h4 className="font-medium mb-4">Add New Company</h4>
-                    <form onSubmit={async (e) => {
-                      e.preventDefault()
-                      try {
-                        const { data: { user } } = await supabase.auth.getUser()
-                        if (!user) return
+                    <form
+                      onSubmit={async e => {
+                        e.preventDefault()
+                        try {
+                          const {
+                            data: { user },
+                          } = await supabase.auth.getUser()
+                          if (!user) return
 
-                        // Check if email is verified
-                        if (!user.email_confirmed_at) {
+                          // Check if email is verified
+                          if (!user.email_confirmed_at) {
+                            toast({
+                              title: 'Email verification required',
+                              description:
+                                'Please verify your email address before creating a company.',
+                              variant: 'destructive',
+                            })
+                            return
+                          }
+
+                          // Create company via API route
+                          const response = await fetch('/api/create-company', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              companyName: newCompanyForm.name,
+                              ein: newCompanyForm.ein || null,
+                              streetAddress:
+                                newCompanyForm.street_address || null,
+                              city: newCompanyForm.city || null,
+                              state: newCompanyForm.state || null,
+                              zipCode: newCompanyForm.zip_code || null,
+                              accountingMethod:
+                                newCompanyForm.accounting_method,
+                            }),
+                          })
+
+                          if (!response.ok) {
+                            const errorData = await response.json()
+                            throw new Error(
+                              errorData.error || 'Failed to create company'
+                            )
+                          }
+
                           toast({
-                            title: 'Email verification required',
-                            description: 'Please verify your email address before creating a company.',
+                            title: 'Success',
+                            description: 'Company created successfully',
+                          })
+
+                          setShowAddCompany(false)
+                          setNewCompanyForm({
+                            name: '',
+                            street_address: '',
+                            city: '',
+                            state: '',
+                            zip_code: '',
+                            ein: '',
+                            accounting_method: 'cash',
+                          })
+                          await refreshCompanies()
+                        } catch (error) {
+                          console.error('Company creation error:', error)
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to create company',
                             variant: 'destructive',
                           })
-                          return
                         }
-
-                        // Create company via API route
-                        const response = await fetch('/api/create-company', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                          body: JSON.stringify({
-                            companyName: newCompanyForm.name,
-                            ein: newCompanyForm.ein || null,
-                            streetAddress: newCompanyForm.street_address || null,
-                            city: newCompanyForm.city || null,
-                            state: newCompanyForm.state || null,
-                            zipCode: newCompanyForm.zip_code || null,
-                            accountingMethod: newCompanyForm.accounting_method
-                          }),
-                        })
-
-                        if (!response.ok) {
-                          const errorData = await response.json()
-                          throw new Error(errorData.error || 'Failed to create company')
-                        }
-
-                        toast({
-                          title: 'Success',
-                          description: 'Company created successfully',
-                        })
-
-                        setShowAddCompany(false)
-                        setNewCompanyForm({ name: '', street_address: '', city: '', state: '', zip_code: '', ein: '', accounting_method: 'cash' })
-                        await refreshCompanies()
-                      } catch (error) {
-                        console.error('Company creation error:', error)
-                        toast({
-                          title: 'Error',
-                          description: 'Failed to create company',
-                          variant: 'destructive',
-                        })
-                      }
-                    }}>
+                      }}
+                    >
                       <div className="space-y-4">
                         <div>
                           <Label htmlFor="newCompanyName">Company Name *</Label>
                           <Input
                             id="newCompanyName"
                             value={newCompanyForm.name}
-                            onChange={(e) => setNewCompanyForm({ ...newCompanyForm, name: e.target.value })}
+                            onChange={e =>
+                              setNewCompanyForm({
+                                ...newCompanyForm,
+                                name: e.target.value,
+                              })
+                            }
                             required
                           />
                         </div>
@@ -683,18 +851,30 @@ function SettingsPageContent() {
                           <SimpleEIN
                             id="newCompanyEin"
                             value={newCompanyForm.ein}
-                            onValueChangeAction={(value) => setNewCompanyForm({ ...newCompanyForm, ein: value })}
+                            onValueChangeAction={value =>
+                              setNewCompanyForm({
+                                ...newCompanyForm,
+                                ein: value,
+                              })
+                            }
                             onValidationChange={setNewCompanyEinValid}
                             nextInputId="newCompanyStreet"
                           />
                         </div>
                         <div className="space-y-4">
                           <div>
-                            <Label htmlFor="newCompanyStreet">Street Address</Label>
+                            <Label htmlFor="newCompanyStreet">
+                              Street Address
+                            </Label>
                             <Input
                               id="newCompanyStreet"
                               value={newCompanyForm.street_address}
-                              onChange={(e) => setNewCompanyForm({ ...newCompanyForm, street_address: e.target.value })}
+                              onChange={e =>
+                                setNewCompanyForm({
+                                  ...newCompanyForm,
+                                  street_address: e.target.value,
+                                })
+                              }
                               placeholder="123 Main St"
                             />
                           </div>
@@ -704,7 +884,12 @@ function SettingsPageContent() {
                               <Input
                                 id="newCompanyCity"
                                 value={newCompanyForm.city}
-                                onChange={(e) => setNewCompanyForm({ ...newCompanyForm, city: e.target.value })}
+                                onChange={e =>
+                                  setNewCompanyForm({
+                                    ...newCompanyForm,
+                                    city: e.target.value,
+                                  })
+                                }
                                 placeholder="San Francisco"
                               />
                             </div>
@@ -712,17 +897,26 @@ function SettingsPageContent() {
                               <Label htmlFor="newCompanyState">State</Label>
                               <Select
                                 value={newCompanyForm.state}
-                                onValueChange={(value) => setNewCompanyForm({ ...newCompanyForm, state: value })}
+                                onValueChange={value =>
+                                  setNewCompanyForm({
+                                    ...newCompanyForm,
+                                    state: value,
+                                  })
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select state" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {US_STATES.map((state) => (
-                                    <SelectItem key={state.code} value={state.code}>
+                                  {US_STATES.map(state => (
+                                    <SelectItem
+                                      key={state.code}
+                                      value={state.code}
+                                    >
                                       {state.name} ({state.code})
                                     </SelectItem>
-                                  ))}                                </SelectContent>
+                                  ))}{' '}
+                                </SelectContent>
                               </Select>
                             </div>
                             <div>
@@ -730,23 +924,28 @@ function SettingsPageContent() {
                               <Input
                                 id="newCompanyZip"
                                 value={newCompanyForm.zip_code}
-                                onChange={(e) => setNewCompanyForm({ ...newCompanyForm, zip_code: e.target.value })}
+                                onChange={e =>
+                                  setNewCompanyForm({
+                                    ...newCompanyForm,
+                                    zip_code: e.target.value,
+                                  })
+                                }
                                 placeholder="12345"
                               />
                             </div>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button 
-                            type="submit" 
+                          <Button
+                            type="submit"
                             size="sm"
                             disabled={!newCompanyEinValid}
                           >
                             Create Company
                           </Button>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
+                          <Button
+                            type="button"
+                            variant="outline"
                             size="sm"
                             onClick={() => setShowAddCompany(false)}
                           >
@@ -775,20 +974,26 @@ function SettingsPageContent() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                {users.map(user => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
+                  >
                     <div>
                       <p className="font-medium">{user.email}</p>
                       <p className="text-sm text-muted-foreground">
-                        Role: {user.role === 'admin' ? 'Administrator' : 'Staff'}
+                        Role:{' '}
+                        {user.role === 'admin' ? 'Administrator' : 'Staff'}
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        user.role === 'admin' 
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-secondary text-secondary-foreground'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.role === 'admin'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-secondary text-secondary-foreground'
+                        }`}
+                      >
                         {user.role === 'admin' ? 'Admin' : 'Staff'}
                       </span>
                     </div>
@@ -823,62 +1028,80 @@ function SettingsPageContent() {
               {!currentCompany ? (
                 <div className="text-center py-8">
                   <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Company Setup Required
+                  </h3>
                   <p className="text-muted-foreground mb-4">
-                    You need to set up your company information before accessing billing features.
+                    You need to set up your company information before accessing
+                    billing features.
                   </p>
-                  <Button onClick={() => window.location.href = '/onboarding'}>
+                  <Button
+                    onClick={() => (window.location.href = '/onboarding')}
+                  >
                     Complete Company Setup
                   </Button>
                 </div>
               ) : (
-              <div className="space-y-6">
-                <div className="p-6 border rounded-lg bg-blue-50 dark:bg-blue-950">
-                  <h3 className="text-lg font-semibold mb-2">Basic Plan</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Perfect for small businesses getting started with accounting
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-3xl font-bold">$29</span>
-                      <span className="text-muted-foreground">/month</span>
-                    </div>
-                    {hasSubscription ? (
-                      <Button onClick={handleManageSubscription} disabled={managingSubscription}>
-                        {managingSubscription ? 'Loading...' : 'Manage Subscription'}
-                      </Button>
-                    ) : (
-                      <Button onClick={handleSubscribe} disabled={managingSubscription}>
-                        {managingSubscription ? 'Loading...' : 'Subscribe Now'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Plan Features</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>• Unlimited transactions</li>
-                    <li>• Financial reports (P&L, Balance Sheet, Cash Flow)</li>
-                    <li>• Bank statement import</li>
-                    <li>• Payables & receivables tracking</li>
-                    <li>• Multiple users</li>
-                    <li>• Email support</li>
-                  </ul>
-                </div>
-
-                {hasSubscription && (
-                  <div className="pt-4 border-t">
-                    <h4 className="font-semibold mb-2">Payment Method</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Payment method on file
+                <div className="space-y-6">
+                  <div className="p-6 border rounded-lg bg-blue-50 dark:bg-blue-950">
+                    <h3 className="text-lg font-semibold mb-2">Basic Plan</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Perfect for small businesses getting started with
+                      accounting
                     </p>
-                    <Button variant="outline" className="mt-2">
-                      Update Payment Method
-                    </Button>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-3xl font-bold">$29</span>
+                        <span className="text-muted-foreground">/month</span>
+                      </div>
+                      {hasSubscription ? (
+                        <Button
+                          onClick={handleManageSubscription}
+                          disabled={managingSubscription}
+                        >
+                          {managingSubscription
+                            ? 'Loading...'
+                            : 'Manage Subscription'}
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleSubscribe}
+                          disabled={managingSubscription}
+                        >
+                          {managingSubscription
+                            ? 'Loading...'
+                            : 'Subscribe Now'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-semibold">Plan Features</h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      <li>• Unlimited transactions</li>
+                      <li>
+                        • Financial reports (P&L, Balance Sheet, Cash Flow)
+                      </li>
+                      <li>• Bank statement import</li>
+                      <li>• Payables & receivables tracking</li>
+                      <li>• Multiple users</li>
+                      <li>• Email support</li>
+                    </ul>
+                  </div>
+
+                  {hasSubscription && (
+                    <div className="pt-4 border-t">
+                      <h4 className="font-semibold mb-2">Payment Method</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Payment method on file
+                      </p>
+                      <Button variant="outline" className="mt-2">
+                        Update Payment Method
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

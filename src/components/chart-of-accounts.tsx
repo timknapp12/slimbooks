@@ -5,13 +5,48 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useCompany } from '@/contexts/CompanyContext'
-import { Plus, Edit2, BookOpen, Check, X, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  Plus,
+  Edit2,
+  BookOpen,
+  Check,
+  X,
+  HelpCircle,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
 
 interface ChartOfAccount {
   id: string
@@ -39,12 +74,14 @@ export default function ChartOfAccounts() {
   const [saving, setSaving] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null)
-  const [editingAccount, setEditingAccount] = useState<Partial<ChartOfAccount>>({})
+  const [editingAccount, setEditingAccount] = useState<Partial<ChartOfAccount>>(
+    {}
+  )
   const [newAccountForm, setNewAccountForm] = useState<NewAccountForm>({
     account_number: '',
     account_name: '',
     account_type: 'asset',
-    description: ''
+    description: '',
   })
   const [filterType, setFilterType] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -100,21 +137,24 @@ export default function ChartOfAccounts() {
   }, [fetchAccounts, currentCompany])
 
   const filteredAccounts = accounts.filter(account => {
-    const matchesSearch = account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         account.account_number.includes(searchTerm) ||
-                         (account.description && account.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    const matchesSearch =
+      account.account_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      account.account_number.includes(searchTerm) ||
+      (account.description &&
+        account.description.toLowerCase().includes(searchTerm.toLowerCase()))
     return matchesSearch
   })
 
-
-
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!currentCompany) return
 
     // Validate required fields
-    if (!newAccountForm.account_number?.trim() || !newAccountForm.account_name?.trim()) {
+    if (
+      !newAccountForm.account_number?.trim() ||
+      !newAccountForm.account_name?.trim()
+    ) {
       toast({
         title: 'Error',
         description: 'Account number and name are required',
@@ -144,15 +184,13 @@ export default function ChartOfAccounts() {
         return
       }
 
-      const { error } = await supabase
-        .from('chart_of_accounts')
-        .insert({
-          company_id: currentCompany.id,
-          account_number: newAccountForm.account_number,
-          account_name: newAccountForm.account_name,
-          account_type: newAccountForm.account_type,
-          description: newAccountForm.description || null
-        })
+      const { error } = await supabase.from('chart_of_accounts').insert({
+        company_id: currentCompany.id,
+        account_number: newAccountForm.account_number,
+        account_name: newAccountForm.account_name,
+        account_type: newAccountForm.account_type,
+        description: newAccountForm.description || null,
+      })
 
       if (error) {
         console.error('Error adding account:', error)
@@ -173,7 +211,7 @@ export default function ChartOfAccounts() {
         account_number: '',
         account_name: '',
         account_type: 'asset',
-        description: ''
+        description: '',
       })
       setIsAddDialogOpen(false)
       fetchAccounts()
@@ -193,7 +231,7 @@ export default function ChartOfAccounts() {
       account_number: account.account_number,
       account_name: account.account_name,
       account_type: account.account_type,
-      description: account.description || ''
+      description: account.description || '',
     })
   }
 
@@ -207,14 +245,17 @@ export default function ChartOfAccounts() {
     console.log('editingAccountId:', editingAccountId)
     console.log('currentCompany:', currentCompany)
     console.log('editingAccount:', editingAccount)
-    
+
     if (!editingAccountId || !currentCompany) {
       console.log('Missing editingAccountId or currentCompany')
       return
     }
 
     // Validate required fields
-    if (!editingAccount.account_number?.trim() || !editingAccount.account_name?.trim()) {
+    if (
+      !editingAccount.account_number?.trim() ||
+      !editingAccount.account_name?.trim()
+    ) {
       console.log('Validation failed - missing account number or name')
       toast({
         title: 'Error',
@@ -251,16 +292,16 @@ export default function ChartOfAccounts() {
         account_number: editingAccount.account_number,
         account_name: editingAccount.account_name,
         account_type: editingAccount.account_type,
-        description: editingAccount.description || null
+        description: editingAccount.description || null,
       })
-      
+
       const { error } = await supabase
         .from('chart_of_accounts')
         .update({
           account_number: editingAccount.account_number,
           account_name: editingAccount.account_name,
           account_type: editingAccount.account_type,
-          description: editingAccount.description || null
+          description: editingAccount.description || null,
         })
         .eq('id', editingAccountId)
 
@@ -273,7 +314,7 @@ export default function ChartOfAccounts() {
         })
         return
       }
-      
+
       console.log('Account updated successfully')
 
       toast({
@@ -296,27 +337,37 @@ export default function ChartOfAccounts() {
     }
   }
 
-
-
   const getAccountTypeColor = (type: string) => {
     switch (type) {
-      case 'asset': return 'text-blue-600 bg-blue-50'
-      case 'liability': return 'text-red-600 bg-red-50'
-      case 'equity': return 'text-purple-600 bg-purple-50'
-      case 'revenue': return 'text-green-600 bg-green-50'
-      case 'expense': return 'text-orange-600 bg-orange-50'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'asset':
+        return 'text-blue-600 bg-blue-50'
+      case 'liability':
+        return 'text-red-600 bg-red-50'
+      case 'equity':
+        return 'text-purple-600 bg-purple-50'
+      case 'revenue':
+        return 'text-green-600 bg-green-50'
+      case 'expense':
+        return 'text-orange-600 bg-orange-50'
+      default:
+        return 'text-gray-600 bg-gray-50'
     }
   }
 
   const getAccountTypeLabel = (type: string) => {
     switch (type) {
-      case 'asset': return 'Asset'
-      case 'liability': return 'Liability'
-      case 'equity': return 'Equity'
-      case 'revenue': return 'Revenue'
-      case 'expense': return 'Expense'
-      default: return type
+      case 'asset':
+        return 'Asset'
+      case 'liability':
+        return 'Liability'
+      case 'equity':
+        return 'Equity'
+      case 'revenue':
+        return 'Revenue'
+      case 'expense':
+        return 'Expense'
+      default:
+        return type
     }
   }
 
@@ -326,7 +377,8 @@ export default function ChartOfAccounts() {
         <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">Company Setup Required</h3>
         <p className="text-muted-foreground">
-          You need to set up your company information before accessing Chart of Accounts.
+          You need to set up your company information before accessing Chart of
+          Accounts.
         </p>
       </div>
     )
@@ -338,7 +390,8 @@ export default function ChartOfAccounts() {
         <div>
           <h2 className="text-2xl font-bold">Chart of Accounts</h2>
           <p className="text-muted-foreground">
-            Manage your company&apos;s Chart of Accounts for proper financial categorization
+            Manage your company&apos;s Chart of Accounts for proper financial
+            categorization
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -362,7 +415,12 @@ export default function ChartOfAccounts() {
                   <Input
                     id="accountNumber"
                     value={newAccountForm.account_number}
-                    onChange={(e) => setNewAccountForm({ ...newAccountForm, account_number: e.target.value })}
+                    onChange={e =>
+                      setNewAccountForm({
+                        ...newAccountForm,
+                        account_number: e.target.value,
+                      })
+                    }
                     placeholder="e.g., 1000"
                     required
                   />
@@ -371,8 +429,18 @@ export default function ChartOfAccounts() {
                   <Label htmlFor="accountType">Account Type</Label>
                   <Select
                     value={newAccountForm.account_type}
-                    onValueChange={(value: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense') => 
-                      setNewAccountForm({ ...newAccountForm, account_type: value })
+                    onValueChange={(
+                      value:
+                        | 'asset'
+                        | 'liability'
+                        | 'equity'
+                        | 'revenue'
+                        | 'expense'
+                    ) =>
+                      setNewAccountForm({
+                        ...newAccountForm,
+                        account_type: value,
+                      })
                     }
                   >
                     <SelectTrigger>
@@ -393,7 +461,12 @@ export default function ChartOfAccounts() {
                 <Input
                   id="accountName"
                   value={newAccountForm.account_name}
-                  onChange={(e) => setNewAccountForm({ ...newAccountForm, account_name: e.target.value })}
+                  onChange={e =>
+                    setNewAccountForm({
+                      ...newAccountForm,
+                      account_name: e.target.value,
+                    })
+                  }
                   placeholder="e.g., Cash"
                   required
                 />
@@ -403,12 +476,21 @@ export default function ChartOfAccounts() {
                 <Input
                   id="description"
                   value={newAccountForm.description}
-                  onChange={(e) => setNewAccountForm({ ...newAccountForm, description: e.target.value })}
+                  onChange={e =>
+                    setNewAccountForm({
+                      ...newAccountForm,
+                      description: e.target.value,
+                    })
+                  }
                   placeholder="Optional description"
                 />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">Add Account</Button>
@@ -446,7 +528,8 @@ export default function ChartOfAccounts() {
             </Button>
           </div>
           <CardDescription>
-            Understanding how account numbers are used for ordering in financial reports
+            Understanding how account numbers are used for ordering in financial
+            reports
           </CardDescription>
         </CardHeader>
         {showHelperTool && (
@@ -456,15 +539,19 @@ export default function ChartOfAccounts() {
                 How Account Numbers Work in Reports
               </h4>
               <p className="text-blue-800 dark:text-blue-200 text-sm mb-3">
-                Account numbers are used to organize and display accounts in a logical order across all financial reports. 
-                This follows standard accounting practices where accounts are grouped by type and displayed in numerical order.
+                Account numbers are used to organize and display accounts in a
+                logical order across all financial reports. This follows
+                standard accounting practices where accounts are grouped by type
+                and displayed in numerical order.
               </p>
               <p className="text-blue-800 dark:text-blue-200 text-sm">
-                <strong>In Reports:</strong> Accounts are automatically sorted by account number, ensuring consistent ordering 
-                in Profit & Loss statements, Balance Sheets, Cash Flow statements, and other financial reports.
+                <strong>In Reports:</strong> Accounts are automatically sorted
+                by account number, ensuring consistent ordering in Profit & Loss
+                statements, Balance Sheets, Cash Flow statements, and other
+                financial reports.
               </p>
             </div>
-            
+
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -476,53 +563,119 @@ export default function ChartOfAccounts() {
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">1000–1999</TableCell>
-                    <TableCell><span className="font-semibold text-green-700 dark:text-green-400">Assets</span></TableCell>
-                    <TableCell className="text-sm">1010 – Cash, 1200 – Accounts Receivable</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      1000–1999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-green-700 dark:text-green-400">
+                        Assets
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      1010 – Cash, 1200 – Accounts Receivable
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">2000–2999</TableCell>
-                    <TableCell><span className="font-semibold text-red-700 dark:text-red-400">Liabilities</span></TableCell>
-                    <TableCell className="text-sm">2010 – Accounts Payable</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      2000–2999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-red-700 dark:text-red-400">
+                        Liabilities
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      2010 – Accounts Payable
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">3000–3999</TableCell>
-                    <TableCell><span className="font-semibold text-blue-700 dark:text-blue-400">Equity</span></TableCell>
-                    <TableCell className="text-sm">3010 – Owner&apos;s Capital</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      3000–3999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-blue-700 dark:text-blue-400">
+                        Equity
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      3010 – Owner&apos;s Capital
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">4000–4999</TableCell>
-                    <TableCell><span className="font-semibold text-purple-700 dark:text-purple-400">Revenue</span></TableCell>
-                    <TableCell className="text-sm">4010 – Sales Revenue</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      4000–4999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-purple-700 dark:text-purple-400">
+                        Revenue
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      4010 – Sales Revenue
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">5000–5999</TableCell>
-                    <TableCell><span className="font-semibold text-orange-700 dark:text-orange-400">Cost of Goods Sold</span></TableCell>
-                    <TableCell className="text-sm">5010 – Raw Materials</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      5000–5999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-orange-700 dark:text-orange-400">
+                        Cost of Goods Sold
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      5010 – Raw Materials
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">6000–6999</TableCell>
-                    <TableCell><span className="font-semibold text-yellow-700 dark:text-yellow-400">Operating Expenses</span></TableCell>
-                    <TableCell className="text-sm">6100 – Rent, 6200 – Utilities</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      6000–6999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-yellow-700 dark:text-yellow-400">
+                        Operating Expenses
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      6100 – Rent, 6200 – Utilities
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-mono text-sm">7000–7999</TableCell>
-                    <TableCell><span className="font-semibold text-gray-700 dark:text-gray-400">Other Income/Expense</span></TableCell>
-                    <TableCell className="text-sm">7100 – Interest Income</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      7000–7999
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold text-gray-700 dark:text-gray-400">
+                        Other Income/Expense
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      7100 – Interest Income
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </div>
-            
+
             <div className="bg-amber-50 dark:bg-amber-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
               <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-2">
                 💡 Best Practices
               </h4>
               <ul className="text-amber-800 dark:text-amber-200 text-sm space-y-1">
-                <li>• Use numbers within the appropriate range for each account type</li>
-                <li>• Leave gaps between numbers (e.g., 1010, 1020, 1030) for future accounts</li>
-                <li>• Be consistent with your numbering scheme across all accounts</li>
-                <li>• Default accounts are pre-numbered following these ranges</li>
+                <li>
+                  • Use numbers within the appropriate range for each account
+                  type
+                </li>
+                <li>
+                  • Leave gaps between numbers (e.g., 1010, 1020, 1030) for
+                  future accounts
+                </li>
+                <li>
+                  • Be consistent with your numbering scheme across all accounts
+                </li>
+                <li>
+                  • Default accounts are pre-numbered following these ranges
+                </li>
               </ul>
             </div>
           </CardContent>
@@ -535,7 +688,8 @@ export default function ChartOfAccounts() {
             <div>
               <CardTitle>Accounts</CardTitle>
               <CardDescription>
-                {filteredAccounts.length} account{filteredAccounts.length !== 1 ? 's' : ''} found
+                {filteredAccounts.length} account
+                {filteredAccounts.length !== 1 ? 's' : ''} found
               </CardDescription>
             </div>
             <div className="flex items-center space-x-4">
@@ -561,7 +715,7 @@ export default function ChartOfAccounts() {
                   id="search"
                   placeholder="Search accounts..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="w-48"
                 />
               </div>
@@ -586,25 +740,37 @@ export default function ChartOfAccounts() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAccounts.map((account) => (
+                {filteredAccounts.map(account => (
                   <TableRow key={account.id}>
                     <TableCell>
                       {editingAccountId === account.id ? (
                         <Input
                           value={editingAccount.account_number || ''}
-                          onChange={(e) => setEditingAccount({ ...editingAccount, account_number: e.target.value })}
+                          onChange={e =>
+                            setEditingAccount({
+                              ...editingAccount,
+                              account_number: e.target.value,
+                            })
+                          }
                           className="w-20"
                           placeholder="Account #"
                         />
                       ) : (
-                        <span className="font-mono">{account.account_number}</span>
+                        <span className="font-mono">
+                          {account.account_number}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
                       {editingAccountId === account.id ? (
                         <Input
                           value={editingAccount.account_name || ''}
-                          onChange={(e) => setEditingAccount({ ...editingAccount, account_name: e.target.value })}
+                          onChange={e =>
+                            setEditingAccount({
+                              ...editingAccount,
+                              account_name: e.target.value,
+                            })
+                          }
                           placeholder="Account Name"
                         />
                       ) : (
@@ -614,9 +780,21 @@ export default function ChartOfAccounts() {
                     <TableCell>
                       {editingAccountId === account.id ? (
                         <Select
-                          value={editingAccount.account_type || account.account_type}
-                          onValueChange={(value: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense') => 
-                            setEditingAccount({ ...editingAccount, account_type: value })
+                          value={
+                            editingAccount.account_type || account.account_type
+                          }
+                          onValueChange={(
+                            value:
+                              | 'asset'
+                              | 'liability'
+                              | 'equity'
+                              | 'revenue'
+                              | 'expense'
+                          ) =>
+                            setEditingAccount({
+                              ...editingAccount,
+                              account_type: value,
+                            })
                           }
                         >
                           <SelectTrigger className="w-24">
@@ -631,7 +809,11 @@ export default function ChartOfAccounts() {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountTypeColor(account.account_type)}`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getAccountTypeColor(
+                            account.account_type
+                          )}`}
+                        >
                           {getAccountTypeLabel(account.account_type)}
                         </span>
                       )}
@@ -640,7 +822,12 @@ export default function ChartOfAccounts() {
                       {editingAccountId === account.id ? (
                         <Input
                           value={editingAccount.description || ''}
-                          onChange={(e) => setEditingAccount({ ...editingAccount, description: e.target.value })}
+                          onChange={e =>
+                            setEditingAccount({
+                              ...editingAccount,
+                              description: e.target.value,
+                            })
+                          }
                           placeholder="Description"
                         />
                       ) : (
@@ -650,11 +837,13 @@ export default function ChartOfAccounts() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        account.is_active 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          account.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {account.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </TableCell>
@@ -690,7 +879,6 @@ export default function ChartOfAccounts() {
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-
                         </div>
                       )}
                     </TableCell>
@@ -703,4 +891,4 @@ export default function ChartOfAccounts() {
       </Card>
     </div>
   )
-} 
+}
