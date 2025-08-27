@@ -578,11 +578,16 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                   )}
 
                   {validation.mappings.length > 0 && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <h5 className="font-medium text-blue-800 mb-2">
-                        Category Mappings:
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                      <h5 className="font-medium text-blue-700 dark:text-blue-300 mb-2">
+                        Smart Category Suggestions
                       </h5>
-                      <div className="text-sm text-blue-700 space-y-1">
+                      <p className="text-sm text-blue-600 dark:text-blue-400 mb-3">
+                        We&apos;ve automatically matched your transaction
+                        categories to our chart of accounts. You can review and
+                        edit these after importing.
+                      </p>
+                      <div className="text-sm text-blue-600 dark:text-blue-400 space-y-1">
                         {validation.mappings.map((mapping, index) => (
                           <div key={index} className="flex justify-between">
                             <span>
