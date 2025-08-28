@@ -28,7 +28,14 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
-import { Upload, Download, Edit2, Check, X as XIcon } from 'lucide-react'
+import {
+  Upload,
+  Download,
+  Edit2,
+  Check,
+  X as XIcon,
+  Trash2,
+} from 'lucide-react'
 import Papa from 'papaparse'
 import {
   autoCategorizeTranaction,
@@ -159,6 +166,10 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
 
   const saveEditing = (id: string) => {
     setEditingRowId(null)
+  }
+
+  const deleteRow = (id: string) => {
+    setEditableData(prev => prev.filter(row => row.id !== id))
   }
 
   const createMissingCategory = async (
@@ -1072,14 +1083,24 @@ export function CSVUpload({ isOpen, onClose, onSuccess }: CSVUploadProps) {
                                     </Button>
                                   </div>
                                 ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => startEditing(row.id)}
-                                    className="h-8 w-8 p-0 hover:bg-blue-500/10 hover:border-blue-500/30"
-                                  >
-                                    <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => startEditing(row.id)}
+                                      className="h-8 w-8 p-0 hover:bg-blue-500/10 hover:border-blue-500/30"
+                                    >
+                                      <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => deleteRow(row.id)}
+                                      className="h-8 w-8 p-0 hover:bg-red-500/10 hover:border-red-500/30"
+                                    >
+                                      <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                    </Button>
+                                  </div>
                                 )}
                               </TableCell>
                             </TableRow>
