@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { extractTextFromPDF } from '@/lib/pdf-processor'
 import { parseTransactionsWithAI } from '@/lib/ai-parser'
 import { sanitizeBankStatementText, validateSanitization } from '@/lib/data-sanitizer'
+import { progressTracker } from '@/lib/progress-tracker'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File
     const companyId = formData.get('companyId') as string
+    const progressId = formData.get('progressId') as string
 
     if (!file || !companyId) {
       return NextResponse.json(
@@ -29,6 +31,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Use provided progress ID or generate one
+    const actualProgressId = progressId || `pdf-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    
+    progressTracker.updateProgress(actualProgressId, 'starting', 0, 'Starting PDF processing...')
 
     // Validate file type
     if (file.type !== 'application/pdf') {
@@ -57,6 +64,8 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
+    progressTracker.updateProgress(actualProgressId, 'extracting', 5, 'Extracting text from PDF...')
+    
     // Extract text from PDF
     const extractedText = await extractTextFromPDF(buffer)
     
@@ -104,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse transactions using AI with available categories (using sanitized text)
-    const transactions = await parseTransactionsWithAI(sanitizedText, availableCategories)
+    const transactions = await parseTransactionsWithAI(sanitizedText, availableCategories, actualProgressId)
     
     if (!transactions || transactions.length === 0) {
       return NextResponse.json(
@@ -126,11 +135,19 @@ export async function POST(request: NextRequest) {
       // Continue without storing the file - the parsing is more important
     }
 
+    progressTracker.updateProgress(actualProgressId, 'complete', 100, `Successfully processed ${transactions.length} transactions`)
+    
+    // Clean up progress after a delay
+    setTimeout(() => {
+      progressTracker.cleanup(actualProgressId)
+    }, 5000)
+
     return NextResponse.json({
       success: true,
       transactions,
       extractedText: extractedText.substring(0, 1000), // First 1000 chars for debugging
       fileName: uploadData?.path || fileName,
+      progressId: actualProgressId, // Return the progress ID for frontend reference
     })
   } catch (error) {
     console.error('Error processing PDF:', error)

@@ -68,8 +68,6 @@ interface EditablePDFRow {
   originalData: ParsedTransaction
 }
 
-
-
 export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -108,8 +106,6 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
       fetchChartOfAccounts()
     }
   }, [currentCompany, fetchChartOfAccounts])
-
-
 
   const updateEditableRow = (
     id: string,
@@ -179,12 +175,11 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
 
     for (let i = 0; i < transactions.length; i++) {
       const transaction = transactions[i]
-      
+
       // Use the category from AI response, fallback to auto-categorization
-      const aiCategory = transaction.category || autoCategorizeTranaction(
-        transaction.description,
-        transaction.type
-      )
+      const aiCategory =
+        transaction.category ||
+        autoCategorizeTranaction(transaction.description, transaction.type)
 
       const accountType = transaction.type === 'income' ? 'revenue' : 'expense'
       const existingCategory = localCategories.find(
@@ -214,24 +209,67 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
     return editableRows
   }
 
+  // Progress tracking with Server-Sent Events for status updates
+  const connectToProgress = (id: string) => {
+    console.log('Connecting to progress stream for ID:', id)
+    const eventSource = new EventSource(`/api/parse-pdf/progress?id=${id}`)
+
+    eventSource.onmessage = event => {
+      try {
+        const data = JSON.parse(event.data)
+        console.log('Progress update received:', data)
+
+        if (data.type === 'connected') {
+          console.log('Connected to progress stream')
+          return
+        }
+
+        setProcessingStatus(data.message || '')
+
+        if (data.step === 'complete') {
+          console.log('Progress complete, closing stream')
+          eventSource.close()
+        }
+      } catch (error) {
+        console.error('Error parsing progress data:', error)
+      }
+    }
+
+    eventSource.onerror = error => {
+      console.error('Progress stream error:', error)
+      eventSource.close()
+    }
+
+    return eventSource
+  }
+
   const processFile = async (selectedFile: File) => {
     if (selectedFile && selectedFile.type === 'application/pdf') {
       setFile(selectedFile)
       setEditableData([])
       setAiProcessing(true)
-      setProcessingStatus('Uploading PDF...')
+      setProcessingStatus('Starting PDF processing...')
+
+      let eventSource: EventSource | null = null
 
       try {
         if (!currentCompany) {
           throw new Error('No company selected')
         }
 
+        // Generate progress ID upfront
+        const progressId = `pdf-${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2, 11)}`
+
+        // Connect to progress stream BEFORE making the request
+        eventSource = connectToProgress(progressId)
+
         const formData = new FormData()
         formData.append('file', selectedFile)
         formData.append('companyId', currentCompany.id)
+        formData.append('progressId', progressId) // Send progress ID to backend
 
-        setProcessingStatus('Extracting text from PDF...')
-        
         const response = await fetch('/api/parse-pdf', {
           method: 'POST',
           body: formData,
@@ -242,16 +280,16 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
           throw new Error(errorData.error || 'Failed to process PDF')
         }
 
-        setProcessingStatus('AI is analyzing transactions...')
-        
         const result = await response.json()
-        
+
         if (!result.success || !result.transactions) {
           throw new Error('No transactions found in PDF')
         }
 
         const editableRows = convertToEditableData(result.transactions)
         setEditableData(editableRows)
+
+        setProcessingStatus('Complete!')
 
         toast({
           title: 'PDF Processed Successfully',
@@ -261,12 +299,18 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
         console.error('Error processing PDF:', error)
         toast({
           title: 'Error Processing PDF',
-          description: error instanceof Error ? error.message : 'Failed to process PDF',
+          description:
+            error instanceof Error ? error.message : 'Failed to process PDF',
           variant: 'destructive',
         })
       } finally {
+        if (eventSource) {
+          eventSource.close()
+        }
         setAiProcessing(false)
-        setProcessingStatus('')
+        setTimeout(() => {
+          setProcessingStatus('')
+        }, 2000)
       }
     } else {
       toast({
@@ -321,7 +365,7 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
       if (!user) return
 
       setProcessingStatus('Creating missing categories...')
-      
+
       const uniqueMissingCategories = localCategories
         .filter(cat => cat.account_number?.startsWith('temp-'))
         .filter(
@@ -351,7 +395,7 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
       }
 
       setProcessingStatus('Importing transactions...')
-      
+
       let successCount = 0
       let errorCount = 0
       const totalRows = editableData.length
@@ -506,7 +550,8 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
               Import PDF Bank Statement
             </DialogTitle>
             <DialogDescription className="text-base mt-2">
-              Upload a PDF bank statement and let AI extract transactions automatically
+              Upload a PDF bank statement and let AI extract transactions
+              automatically
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -535,9 +580,14 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
                     : 'Choose PDF file or drag and drop'}
                 </span>
                 {processingStatus && (
-                  <span className="mt-1 block text-xs text-blue-600">
+                  <span className="mt-1 block text-xs text-blue-600 animate-pulse">
                     {processingStatus}
                   </span>
+                )}
+                {aiProcessing && (
+                  <div className="mt-3 flex justify-center">
+                    <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
                 )}
               </div>
               <input
@@ -561,8 +611,6 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
                 </p>
               </div>
 
-
-
               {editableData.length > 0 && (
                 <div>
                   <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md mb-4">
@@ -571,10 +619,9 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
                       AI Extracted Transactions
                     </h5>
                     <p className="text-sm text-blue-600 dark:text-blue-400">
-                      AI found {editableData.length} transactions in your PDF. 
+                      AI found {editableData.length} transactions in your PDF.
                       Review and edit them before importing.
                     </p>
-
                   </div>
 
                   <h4 className="font-medium mb-4">
@@ -812,7 +859,9 @@ export function PDFUpload({ isOpen, onClose, onSuccess }: PDFUploadProps) {
               </Button>
               <Button
                 onClick={handleUpload}
-                disabled={uploading || editableData.length === 0 || aiProcessing}
+                disabled={
+                  uploading || editableData.length === 0 || aiProcessing
+                }
                 className={
                   editableData.length > 0 && !aiProcessing
                     ? ''
