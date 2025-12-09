@@ -20,8 +20,15 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Upload, Filter, Building2, Calendar, Trash2 } from 'lucide-react'
+import { Plus, Upload, Filter, Building2, Calendar, Trash2, Bot, Shield } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { CSVUpload } from '@/components/csv-upload'
+import { PDFUpload } from '@/components/pdf-upload'
 import { BankConnect } from '@/components/bank-connect'
 import {
   formatDate,
@@ -41,6 +48,7 @@ import type { TransactionFormData } from '@/types/transaction'
 export default function TransactionsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isCSVUploadOpen, setIsCSVUploadOpen] = useState(false)
+  const [isPDFUploadOpen, setIsPDFUploadOpen] = useState(false)
   const [isBankConnectOpen, setIsBankConnectOpen] = useState(false)
   const [isFilterVisible, setIsFilterVisible] = useState(false)
   const [filterType, setFilterType] = useState<string>('all')
@@ -69,6 +77,7 @@ export default function TransactionsPage() {
     cancelEditing,
     saveTransaction,
     setEditingTransaction,
+    fetchTransactions,
   } = useTransactions({ supabase, currentCompany })
 
   // Filter transactions based on current filters
@@ -160,6 +169,32 @@ export default function TransactionsPage() {
           <Upload className="h-4 w-4" />
           Import CSV
         </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                onClick={() => setIsPDFUploadOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Bot className="h-4 w-4" />
+                Import PDF (AI)
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <div className="flex items-start gap-2">
+                <Shield className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium">Privacy Protected</p>
+                  <p className="text-muted-foreground">
+                    All private personal and account info is kept from the AI tool. 
+                    Only transaction data is sent to the AI for processing.
+                  </p>
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <Button
           variant="outline"
           onClick={() => setIsBankConnectOpen(true)}
@@ -402,6 +437,20 @@ export default function TransactionsPage() {
             title: 'Success',
             description: 'CSV file uploaded and processed successfully',
           })
+          fetchTransactions()
+        }}
+      />
+
+      {/* PDF Upload Dialog */}
+      <PDFUpload
+        isOpen={isPDFUploadOpen}
+        onClose={() => setIsPDFUploadOpen(false)}
+        onSuccess={() => {
+          toast({
+            title: 'Success',
+            description: 'PDF file processed and transactions imported successfully',
+          })
+          fetchTransactions()
         }}
       />
 
