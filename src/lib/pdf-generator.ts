@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { formatDateForPDF } from '@/lib/date-utils'
+import { ColumnarProfitLoss, ColumnarLineItem } from '@/types/columnar-report'
 
 export interface ReportData {
   profitLoss: {
@@ -619,8 +620,413 @@ export async function generateFinancialReportPDF(
   return await pdfDoc.save()
 }
 
+export interface ColumnarPDFOptions {
+  companyName?: string
+  year: number
+  columnMode: 'monthly' | 'quarterly'
+  accountingMethod: 'cash' | 'accrual'
+  columnarData: ColumnarProfitLoss
+}
+
+export async function generateColumnarProfitLossPDF(
+  options: ColumnarPDFOptions
+): Promise<Uint8Array> {
+  const {
+    companyName = 'Your Company',
+    year,
+    columnMode,
+    accountingMethod,
+    columnarData,
+  } = options
+
+  // Create a new PDF document in landscape orientation
+  const pdfDoc = await PDFDocument.create()
+  const page = pdfDoc.addPage([792, 612]) // US Letter landscape
+  const { width, height } = page.getSize()
+
+  // Define margins and layout constants
+  const leftMargin = 40
+  const rightMargin = 40
+  const topMargin = 50
+  const centerX = width / 2
+
+  // Get fonts
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  let yPosition = height - topMargin
+
+  // Calculate column widths dynamically
+  const periods = columnarData.periods
+  const columnCount = periods.length + 2 // Account name + periods + Total
+  const availableWidth = width - leftMargin - rightMargin
+  const accountColWidth = 140
+  const totalColWidth = 60
+  const periodColWidth = Math.floor(
+    (availableWidth - accountColWidth - totalColWidth) / periods.length
+  )
+
+  // Helper function to format currency (compact for columns)
+  const formatCurrency = (amount: number): string => {
+    if (amount === 0) return '-'
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  // Helper function to add text
+  const addText = (
+    text: string,
+    x: number,
+    y: number,
+    fontSize: number = 9,
+    isBold: boolean = false,
+    align: 'left' | 'right' | 'center' = 'left',
+    maxWidth?: number
+  ) => {
+    const currentFont = isBold ? boldFont : font
+    let displayText = text
+
+    // Truncate text if it exceeds maxWidth
+    if (maxWidth) {
+      while (
+        currentFont.widthOfTextAtSize(displayText, fontSize) > maxWidth &&
+        displayText.length > 3
+      ) {
+        displayText = displayText.slice(0, -4) + '...'
+      }
+    }
+
+    const textWidth = currentFont.widthOfTextAtSize(displayText, fontSize)
+    let xPos = x
+
+    if (align === 'right') {
+      xPos = x - textWidth
+    } else if (align === 'center') {
+      xPos = x - textWidth / 2
+    }
+
+    page.drawText(displayText, {
+      x: xPos,
+      y,
+      size: fontSize,
+      font: currentFont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  // Helper to add colored text
+  const addColoredText = (
+    text: string,
+    x: number,
+    y: number,
+    fontSize: number,
+    isBold: boolean,
+    align: 'left' | 'right',
+    isPositive: boolean
+  ) => {
+    const currentFont = isBold ? boldFont : font
+    const textWidth = currentFont.widthOfTextAtSize(text, fontSize)
+    const xPos = align === 'right' ? x - textWidth : x
+
+    page.drawText(text, {
+      x: xPos,
+      y,
+      size: fontSize,
+      font: currentFont,
+      color: isPositive ? rgb(0.1, 0.5, 0.1) : rgb(0.7, 0.1, 0.1),
+    })
+  }
+
+  // Helper to draw horizontal line
+  const addLine = (
+    y: number,
+    startX: number = leftMargin,
+    endX: number = width - rightMargin
+  ) => {
+    page.drawLine({
+      start: { x: startX, y },
+      end: { x: endX, y },
+      thickness: 0.5,
+      color: rgb(0.7, 0.7, 0.7),
+    })
+  }
+
+  // Get X position for a column
+  const getColX = (colIndex: number): number => {
+    if (colIndex === 0) return leftMargin // Account name column
+    if (colIndex === columnCount - 1) return width - rightMargin // Total column (right edge)
+    return (
+      leftMargin +
+      accountColWidth +
+      (colIndex - 1) * periodColWidth +
+      periodColWidth
+    ) // Period columns
+  }
+
+  // Header
+  addText('PROFIT & LOSS STATEMENT', centerX, yPosition, 14, true, 'center')
+  yPosition -= 18
+  addText(companyName, centerX, yPosition, 12, true, 'center')
+  yPosition -= 16
+  const periodLabel =
+    columnMode === 'monthly' ? 'Monthly Breakdown' : 'Quarterly Breakdown'
+  addText(`${periodLabel} - ${year}`, centerX, yPosition, 10, false, 'center')
+  yPosition -= 14
+  addText(
+    `Accounting Method: ${
+      accountingMethod.charAt(0).toUpperCase() + accountingMethod.slice(1)
+    } Basis`,
+    centerX,
+    yPosition,
+    9,
+    false,
+    'center'
+  )
+  yPosition -= 20
+
+  // Column headers
+  addLine(yPosition + 5)
+  yPosition -= 12
+  addText('Account', leftMargin, yPosition, 9, true)
+  periods.forEach((period, idx) => {
+    addText(period.label, getColX(idx + 1), yPosition, 9, true, 'right')
+  })
+  addText('Total', getColX(columnCount - 1), yPosition, 9, true, 'right')
+  yPosition -= 5
+  addLine(yPosition)
+  yPosition -= 14
+
+  // Helper to render a section
+  const renderSection = (
+    title: string,
+    items: ColumnarLineItem[],
+    totalLabel: string,
+    periodTotals: Record<string, number>,
+    grandTotal: number
+  ) => {
+    if (items.length === 0 && grandTotal === 0) return
+
+    // Section header
+    addText(title.toUpperCase(), leftMargin, yPosition, 9, true)
+    yPosition -= 12
+
+    // Items
+    items.forEach(item => {
+      const accountLabel = `${item.accountNumber} ${item.accountName}`
+      addText(
+        accountLabel,
+        leftMargin + 10,
+        yPosition,
+        8,
+        false,
+        'left',
+        accountColWidth - 15
+      )
+      periods.forEach((period, idx) => {
+        addText(
+          formatCurrency(item.periodAmounts[period.key]),
+          getColX(idx + 1),
+          yPosition,
+          8,
+          false,
+          'right'
+        )
+      })
+      addText(
+        formatCurrency(item.total),
+        getColX(columnCount - 1),
+        yPosition,
+        8,
+        false,
+        'right'
+      )
+      yPosition -= 11
+    })
+
+    // Section total
+    addLine(yPosition + 4, leftMargin, width - rightMargin)
+    yPosition -= 10
+    addText(totalLabel, leftMargin + 10, yPosition, 8, true)
+    periods.forEach((period, idx) => {
+      addText(
+        formatCurrency(periodTotals[period.key]),
+        getColX(idx + 1),
+        yPosition,
+        8,
+        true,
+        'right'
+      )
+    })
+    addText(
+      formatCurrency(grandTotal),
+      getColX(columnCount - 1),
+      yPosition,
+      8,
+      true,
+      'right'
+    )
+    yPosition -= 16
+  }
+
+  // Helper to render a summary row (like Gross Profit, Net Income)
+  const renderSummaryRow = (
+    label: string,
+    periodTotals: Record<string, number>,
+    grandTotal: number,
+    highlight: boolean = false
+  ) => {
+    if (highlight) {
+      addLine(yPosition + 4)
+      yPosition -= 2
+      addLine(yPosition + 4)
+    }
+    yPosition -= 10
+    addText(label, leftMargin, yPosition, 9, true)
+    periods.forEach((period, idx) => {
+      const amount = periodTotals[period.key]
+      const text = formatCurrency(amount)
+      if (highlight) {
+        addColoredText(
+          text,
+          getColX(idx + 1),
+          yPosition,
+          9,
+          true,
+          'right',
+          amount >= 0
+        )
+      } else {
+        addText(text, getColX(idx + 1), yPosition, 9, true, 'right')
+      }
+    })
+    const totalText = formatCurrency(grandTotal)
+    if (highlight) {
+      addColoredText(
+        totalText,
+        getColX(columnCount - 1),
+        yPosition,
+        9,
+        true,
+        'right',
+        grandTotal >= 0
+      )
+    } else {
+      addText(totalText, getColX(columnCount - 1), yPosition, 9, true, 'right')
+    }
+    yPosition -= 16
+  }
+
+  // Render sections
+  renderSection(
+    'Revenue',
+    columnarData.revenue,
+    'Total Revenue',
+    columnarData.periodTotals.totalRevenue,
+    columnarData.grandTotals.totalRevenue
+  )
+
+  if (columnarData.costOfGoodsSold.length > 0) {
+    renderSection(
+      'Cost of Goods Sold',
+      columnarData.costOfGoodsSold,
+      'Total COGS',
+      columnarData.periodTotals.totalCOGS,
+      columnarData.grandTotals.totalCOGS
+    )
+  }
+
+  renderSummaryRow(
+    'Gross Profit',
+    columnarData.periodTotals.grossProfit,
+    columnarData.grandTotals.grossProfit,
+    true
+  )
+
+  renderSection(
+    'Operating Expenses',
+    columnarData.operatingExpenses,
+    'Total Operating Expenses',
+    columnarData.periodTotals.totalOperatingExpenses,
+    columnarData.grandTotals.totalOperatingExpenses
+  )
+
+  renderSummaryRow(
+    'Operating Income',
+    columnarData.periodTotals.operatingIncome,
+    columnarData.grandTotals.operatingIncome,
+    true
+  )
+
+  if (columnarData.otherIncome.length > 0) {
+    renderSection(
+      'Other Income',
+      columnarData.otherIncome,
+      'Total Other Income',
+      columnarData.periodTotals.totalOtherIncome,
+      columnarData.grandTotals.totalOtherIncome
+    )
+  }
+
+  if (columnarData.otherExpenses.length > 0) {
+    renderSection(
+      'Other Expenses',
+      columnarData.otherExpenses,
+      'Total Other Expenses',
+      columnarData.periodTotals.totalOtherExpenses,
+      columnarData.grandTotals.totalOtherExpenses
+    )
+  }
+
+  renderSummaryRow(
+    'NET INCOME',
+    columnarData.periodTotals.netIncome,
+    columnarData.grandTotals.netIncome,
+    true
+  )
+
+  // Footer
+  const footerY = 30
+  addLine(footerY + 15, leftMargin, width - rightMargin)
+
+  const now = new Date()
+  const currentDate = now.toISOString().split('T')[0]
+  const currentTime = now.toLocaleTimeString('en-US', {
+    timeZone: 'UTC',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+
+  addText(
+    `Generated on ${formatDateForPDF(currentDate)} at ${currentTime} UTC`,
+    leftMargin,
+    footerY,
+    8
+  )
+  addText(
+    'SlimBooks Financial Management System',
+    width - rightMargin,
+    footerY,
+    8,
+    false,
+    'right'
+  )
+
+  return await pdfDoc.save()
+}
+
 export async function downloadPDF(pdfBytes: Uint8Array, filename: string) {
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+  // Ensure Blob receives an ArrayBuffer (not ArrayBufferLike) with the exact view slice
+  const arrayBuffer: ArrayBuffer = pdfBytes.buffer.slice(
+    pdfBytes.byteOffset,
+    pdfBytes.byteOffset + pdfBytes.byteLength
+  ) as ArrayBuffer
+  const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
