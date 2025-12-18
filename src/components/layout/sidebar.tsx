@@ -11,6 +11,7 @@ import {
   Building2,
   LogOut,
   User,
+  FileCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Transactions', href: '/transactions', icon: Receipt },
   { name: 'Reports', href: '/reports', icon: FileText },
+  { name: 'Checks', href: '/checks', icon: FileCheck },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
