@@ -51,11 +51,13 @@ interface CheckTableProps {
 }
 
 const statusColors: Record<CheckStatus, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  pending:
+    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
   printed: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   voided: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
   cleared: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  reconciled: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  reconciled:
+    'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
 }
 
 const statusLabels: Record<CheckStatus, string> = {
@@ -125,7 +127,10 @@ export function CheckTable({
           <TableBody>
             {checks.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No checks found
                 </TableCell>
               </TableRow>
@@ -147,13 +152,18 @@ export function CheckTable({
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {check.status === 'voided' ? (
-                      <span className="line-through">{formatCurrency(check.amount)}</span>
+                      <span className="line-through">
+                        {formatCurrency(check.amount)}
+                      </span>
                     ) : (
                       formatCurrency(check.amount)
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusColors[check.status]} variant="secondary">
+                    <Badge
+                      className={statusColors[check.status]}
+                      variant="secondary"
+                    >
                       {statusLabels[check.status]}
                     </Badge>
                   </TableCell>
@@ -176,7 +186,9 @@ export function CheckTable({
 
                         {/* Mark as Cleared - available for pending and printed */}
                         {['pending', 'printed'].includes(check.status) && (
-                          <DropdownMenuItem onClick={() => onMarkCleared(check.id)}>
+                          <DropdownMenuItem
+                            onClick={() => onMarkCleared(check.id)}
+                          >
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Mark as Cleared
                           </DropdownMenuItem>
@@ -212,7 +224,8 @@ export function CheckTable({
                         {check.status === 'voided' && (
                           <DropdownMenuItem disabled>
                             <span className="text-muted-foreground text-sm">
-                              Voided{check.void_reason && `: ${check.void_reason}`}
+                              Voided
+                              {check.void_reason && `: ${check.void_reason}`}
                             </span>
                           </DropdownMenuItem>
                         )}
@@ -221,7 +234,10 @@ export function CheckTable({
                         {check.status === 'cleared' && (
                           <DropdownMenuItem disabled>
                             <span className="text-muted-foreground text-sm">
-                              Cleared on {check.cleared_at ? formatDate(check.cleared_at.split('T')[0]) : 'N/A'}
+                              Cleared on{' '}
+                              {check.cleared_at
+                                ? formatDate(check.cleared_at.split('T')[0])
+                                : 'N/A'}
                             </span>
                           </DropdownMenuItem>
                         )}
@@ -239,10 +255,12 @@ export function CheckTable({
       <AlertDialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Void Check #{selectedCheck?.check_number}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Void Check #{selectedCheck?.check_number}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will void the check and reverse the associated transaction. The check
-              number will be marked as voided in your records.
+              This will void the check and reverse the associated transaction.
+              The check number will be marked as voided in your records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
@@ -271,10 +289,12 @@ export function CheckTable({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Check #{selectedCheck?.check_number}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete Check #{selectedCheck?.check_number}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this check and its associated transaction.
-              This action cannot be undone.
+              This will permanently delete this check and its associated
+              transaction. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

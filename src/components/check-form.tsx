@@ -26,7 +26,10 @@ import type { ChartOfAccount } from '@/types/transaction'
 interface CheckFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (formData: CheckFormData, payableId?: string) => Promise<string | null>
+  onSubmit: (
+    formData: CheckFormData,
+    payableId?: string
+  ) => Promise<string | null>
   chartOfAccounts: ChartOfAccount[]
   payables?: Payable[]
   nextCheckNumber: number
@@ -62,7 +65,11 @@ export function CheckForm({
 
   // Get expense categories for the category dropdown
   const expenseCategories = chartOfAccounts
-    .filter(account => account.account_type === 'expense' || account.account_type === 'liability')
+    .filter(
+      account =>
+        account.account_type === 'expense' ||
+        account.account_type === 'liability'
+    )
     .map(account => account.account_name)
 
   // Reset form when dialog opens/closes or initial data changes
@@ -153,7 +160,8 @@ export function CheckForm({
                   <SelectItem value="">None - Manual Entry</SelectItem>
                   {payables.map(payable => (
                     <SelectItem key={payable.id} value={payable.id}>
-                      {payable.name} - {formatCurrency(payable.amount.toString())}
+                      {payable.name} -{' '}
+                      {formatCurrency(payable.amount.toString())}
                       {payable.due_date && ` (Due: ${payable.due_date})`}
                     </SelectItem>
                   ))}

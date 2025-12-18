@@ -100,10 +100,20 @@ export default function ChecksPage() {
       }
       return acc
     },
-    { cleared: 0, outstanding: 0, voided: 0, clearedCount: 0, outstandingCount: 0, voidedCount: 0 }
+    {
+      cleared: 0,
+      outstanding: 0,
+      voided: 0,
+      clearedCount: 0,
+      outstandingCount: 0,
+      voidedCount: 0,
+    }
   )
 
-  const handleWriteCheck = async (formData: CheckFormData, payableId?: string): Promise<string | null> => {
+  const handleWriteCheck = async (
+    formData: CheckFormData,
+    payableId?: string
+  ): Promise<string | null> => {
     return await createCheck(formData, payableId)
   }
 
@@ -124,7 +134,9 @@ export default function ChecksPage() {
         checkPrintData,
         currentCompany?.name,
         currentCompany?.street_address
-          ? `${currentCompany.street_address}\n${currentCompany.city || ''}, ${currentCompany.state || ''} ${currentCompany.zip_code || ''}`
+          ? `${currentCompany.street_address}\n${currentCompany.city || ''}, ${
+              currentCompany.state || ''
+            } ${currentCompany.zip_code || ''}`
           : undefined
       )
 
@@ -173,7 +185,9 @@ export default function ChecksPage() {
         checks: checksPrintData,
         companyName: currentCompany?.name,
         companyAddress: currentCompany?.street_address
-          ? `${currentCompany.street_address}\n${currentCompany.city || ''}, ${currentCompany.state || ''} ${currentCompany.zip_code || ''}`
+          ? `${currentCompany.street_address}\n${currentCompany.city || ''}, ${
+              currentCompany.state || ''
+            } ${currentCompany.zip_code || ''}`
           : undefined,
       })
 
@@ -215,9 +229,7 @@ export default function ChecksPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Check Register</h1>
-        <p className="text-muted-foreground">
-          Write, print, and manage checks
-        </p>
+        <p className="text-muted-foreground">Write, print, and manage checks</p>
       </div>
 
       {/* Action Buttons */}
@@ -257,9 +269,12 @@ export default function ChecksPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totals.outstanding)}</div>
+            <div className="text-2xl font-bold">
+              {formatCurrency(totals.outstanding)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {totals.outstandingCount} check{totals.outstandingCount !== 1 ? 's' : ''}
+              {totals.outstandingCount} check
+              {totals.outstandingCount !== 1 ? 's' : ''}
             </p>
           </CardContent>
         </Card>
@@ -270,7 +285,9 @@ export default function ChecksPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.cleared)}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(totals.cleared)}
+            </div>
             <p className="text-xs text-muted-foreground">
               {totals.clearedCount} check{totals.clearedCount !== 1 ? 's' : ''}
             </p>
@@ -283,7 +300,9 @@ export default function ChecksPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totals.voided)}</div>
+            <div className="text-2xl font-bold text-red-600">
+              {formatCurrency(totals.voided)}
+            </div>
             <p className="text-xs text-muted-foreground">
               {totals.voidedCount} check{totals.voidedCount !== 1 ? 's' : ''}
             </p>
@@ -361,7 +380,8 @@ export default function ChecksPage() {
             Checks
           </CardTitle>
           <CardDescription>
-            {filteredChecks.length} check{filteredChecks.length !== 1 ? 's' : ''} found
+            {filteredChecks.length} check
+            {filteredChecks.length !== 1 ? 's' : ''} found
             {filterStatus !== 'all' && ` with status "${filterStatus}"`}
             {` from ${formatDate(dateFrom)} to ${formatDate(dateTo)}`}
           </CardDescription>
