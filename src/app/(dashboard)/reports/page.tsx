@@ -31,11 +31,21 @@ import {
   TableHead,
 } from '@/components/ui/table'
 import { Download } from 'lucide-react'
-import { generateFinancialReportPDF, downloadPDF } from '@/lib/pdf-generator'
+import {
+  generateFinancialReportPDF,
+  generateColumnarProfitLossPDF,
+  downloadPDF,
+} from '@/lib/pdf-generator'
 import {
   generateFinancialReportsDoubleEntry,
   type ReportData,
 } from '@/lib/report-generator-double-entry'
+import { generateColumnarProfitLoss } from '@/lib/columnar-report-generator'
+import {
+  type ColumnDisplayMode,
+  type ColumnarProfitLoss,
+} from '@/types/columnar-report'
+import { ColumnarProfitLossTable } from '@/components/reports/columnar-profit-loss'
 import {
   formatDate,
   getCurrentYear,
@@ -97,6 +107,11 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [pdfGenerating, setPdfGenerating] = useState(false)
   const [showMoreReports, setShowMoreReports] = useState(false)
+  const [columnDisplay, setColumnDisplay] = useState<ColumnDisplayMode>('total')
+  const [columnarData, setColumnarData] = useState<ColumnarProfitLoss | null>(
+    null
+  )
+  const [columnarLoading, setColumnarLoading] = useState(false)
   const accountingMethod = 'cash' // Default accounting method
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
@@ -125,12 +140,41 @@ export default function ReportsPage() {
     }
   }, [dateFrom, dateTo, currentCompany, supabase])
 
+  const fetchColumnarData = useCallback(async () => {
+    if (!currentCompany || columnDisplay === 'total') {
+      setColumnarData(null)
+      return
+    }
+
+    try {
+      setColumnarLoading(true)
+      const data = await generateColumnarProfitLoss({
+        supabase,
+        companyId: currentCompany.id,
+        year: selectedYear,
+        columnMode: columnDisplay,
+      })
+      setColumnarData(data)
+    } catch (error) {
+      console.error('Error fetching columnar report data:', error)
+      setColumnarData(null)
+    } finally {
+      setColumnarLoading(false)
+    }
+  }, [currentCompany, columnDisplay, selectedYear, supabase])
+
   useEffect(() => {
     if (currentCompany) {
       fetchReportData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCompany?.id]) // Only depend on company ID, not fetchReportData
+
+  useEffect(() => {
+    if (currentCompany && columnDisplay !== 'total') {
+      fetchColumnarData()
+    }
+  }, [currentCompany?.id, columnDisplay, selectedYear, fetchColumnarData])
 
   useEffect(() => {
     updateDatesForYear(selectedYear)
@@ -206,16 +250,33 @@ export default function ReportsPage() {
   const handleExportProfitLossPDF = async () => {
     try {
       setPdfGenerating(true)
-      const pdfBytes = await generateFinancialReportPDF({
-        companyName: currentCompany?.name || 'Your Company',
-        dateFrom,
-        dateTo,
-        accountingMethod,
-        reportData,
-        reportType: 'profit-loss',
-      })
 
-      const filename = `profit-loss-report-${dateFrom}-to-${dateTo}.pdf`
+      let pdfBytes: Uint8Array
+      let filename: string
+
+      if (columnDisplay !== 'total' && columnarData) {
+        // Generate columnar PDF (landscape)
+        pdfBytes = await generateColumnarProfitLossPDF({
+          companyName: currentCompany?.name || 'Your Company',
+          year: selectedYear,
+          columnMode: columnDisplay,
+          accountingMethod,
+          columnarData,
+        })
+        filename = `profit-loss-${columnDisplay}-${selectedYear}.pdf`
+      } else {
+        // Generate standard PDF (portrait)
+        pdfBytes = await generateFinancialReportPDF({
+          companyName: currentCompany?.name || 'Your Company',
+          dateFrom,
+          dateTo,
+          accountingMethod,
+          reportData,
+          reportType: 'profit-loss',
+        })
+        filename = `profit-loss-report-${dateFrom}-to-${dateTo}.pdf`
+      }
+
       await downloadPDF(pdfBytes, filename)
     } catch (error) {
       console.error('Error generating Profit & Loss PDF:', error)
@@ -449,22 +510,62 @@ export default function ReportsPage() {
                 <div>
                   <CardTitle>Profit & Loss Statement</CardTitle>
                   <CardDescription>
-                    {formatDate(dateFrom)} - {formatDate(dateTo)}
+                    {columnDisplay === 'total'
+                      ? `${formatDate(dateFrom)} - ${formatDate(dateTo)}`
+                      : columnDisplay === 'monthly'
+                        ? `Monthly Breakdown - ${selectedYear}`
+                        : `Quarterly Breakdown - ${selectedYear}`}
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={handleExportProfitLossPDF}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                  disabled={pdfGenerating}
-                >
-                  <Download className="h-4 w-4" />
-                  {pdfGenerating ? 'Generating...' : 'Download PDF'}
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={columnDisplay}
+                    onValueChange={value =>
+                      setColumnDisplay(value as ColumnDisplayMode)
+                    }
+                  >
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="total">Total Only</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={handleExportProfitLossPDF}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                    disabled={pdfGenerating}
+                  >
+                    <Download className="h-4 w-4" />
+                    {pdfGenerating ? 'Generating...' : 'Download PDF'}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
+              {/* Columnar View */}
+              {columnDisplay !== 'total' && (
+                <>
+                  {columnarLoading ? (
+                    <div className="text-center py-8">
+                      <p>Loading columnar report...</p>
+                    </div>
+                  ) : columnarData ? (
+                    <ColumnarProfitLossTable data={columnarData} />
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No data available for the selected period.</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Standard Total View */}
+              {columnDisplay === 'total' && (
               <div className="space-y-6">
                 {/* Revenue */}
                 <div>
@@ -667,6 +768,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
